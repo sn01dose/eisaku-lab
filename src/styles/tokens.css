@@ -1,0 +1,65 @@
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --paper: #f6f8fb;
+  --card: #ffffff;
+  --rule: #dde3ec;
+
+  /* Indigo ink */
+  --ink-900: #16233d;
+  --ink-600: #46536e;
+  --ink-400: #7a85a0;
+
+  /* Primary action */
+  --ai-600: #2b5fa8;
+  --ai-100: #e4edf9;
+
+  /* Established / correct */
+  --wakaba-600: #2f7d62;
+  --wakaba-100: #e3f1eb;
+
+  /* Review required */
+  --kohaku-600: #b26a17;
+  --kohaku-100: #fbeedc;
+
+  /* Irreversible actions only */
+  --alert-600: #a63a2e;
+
+  --font-ja: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP",
+    "Yu Gothic UI", Meiryo, sans-serif;
+  --font-en-read: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+    "Times New Roman", serif;
+  --font-en-cell: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono",
+    Menlo, Consolas, monospace;
+
+  --fs-caption: 0.75rem;
+  --fs-body: 0.9375rem;
+  --fs-body-lg: 1.0625rem;
+  --fs-title: 1.25rem;
+  --fs-display: 1.625rem;
+  --fs-cell: 1.75rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  --radius-sm: 0.375rem;
+  --radius-card: 0.625rem;
+  --radius-pill: 999px;
+  --shadow-raised: 0 1px 2px rgb(22 35 61 / 6%),
+    0 8px 24px rgb(22 35 61 / 5%);
+
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --motion-press: 120ms;
+  --motion-enter: 200ms;
+  --motion-rule: 320ms;
+
+  --content-width: 45rem;
+  --page-gutter: 1rem;
+  --bottom-nav-height: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}

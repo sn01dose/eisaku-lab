@@ -1,0 +1,71 @@
+.diagnostic-result-page {
+  gap: var(--space-4);
+}
+
+.diagnostic-result-page .page-header {
+  margin-bottom: var(--space-2);
+}
+
+.diagnostic-result-hero {
+  border-left: 4px solid var(--ai-600);
+}
+
+.diagnostic-result-hero p {
+  margin-bottom: var(--space-2);
+}
+
+.diagnostic-result-hero__words,
+.diagnostic-result-note {
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+}
+
+.diagnostic-profile {
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.diagnostic-profile__heading,
+.diagnostic-profile-row__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.diagnostic-profile__heading {
+  margin-bottom: var(--space-4);
+}
+
+.diagnostic-profile__heading h2,
+.diagnostic-profile__eyebrow {
+  margin: 0;
+}
+
+.diagnostic-profile__heading strong {
+  font-family: var(--font-en-cell);
+  font-size: var(--fs-title);
+}
+
+.diagnostic-profile__eyebrow {
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+}
+
+.diagnostic-profile__list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.diagnostic-profile-row__label {
+  margin-bottom: var(--space-2);
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+}
+
+.diagnostic-profile-row__track span {
+  background: var(--wakaba-600);
+}

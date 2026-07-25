@@ -1,0 +1,11 @@
+{
+  "name": "英作ラボ",
+  "short_name": "英作ラボ",
+  "description": "国語の強さを、英語を書く力へ。",
+  "lang": "ja",
+  "start_url": "/eisaku-lab/#/",
+  "scope": "/eisaku-lab/",
+  "display": "standalone",
+  "background_color": "#F6F8FB",
+  "theme_color": "#2B5FA8"
+}
