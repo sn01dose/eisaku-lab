@@ -11,6 +11,8 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LetterCells } from "../../components";
+import "../../styles/index.css";
+import "../../styles/app.css";
 
 afterEach(cleanup);
 
@@ -90,6 +92,47 @@ describe("LetterCells", () => {
     await user.keyboard("e");
     expect(screen.getByTestId("current-value")).toHaveTextContent("te");
     expect(document.activeElement).toBe(inputs[2]);
+  });
+
+  it("keeps an entered letter visible in a 44px underline-only cell", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ControlledLetterCells />);
+
+    const input = screen.getAllByRole("textbox")[0];
+    await user.click(input);
+    await user.keyboard("t");
+
+    expect(input).toHaveValue("t");
+
+    const inputStyle = getComputedStyle(input);
+    expect(inputStyle.color).not.toBe("transparent");
+    expect(inputStyle.color).not.toBe("rgba(0, 0, 0, 0)");
+    expect(inputStyle.fontSize).not.toBe("0px");
+    expect(inputStyle.visibility).not.toBe("hidden");
+    expect(inputStyle.opacity).not.toBe("0");
+
+    const cell = input.closest(".letter-cell");
+    expect(cell).not.toBeNull();
+    const cellStyle = getComputedStyle(cell as Element);
+    expect(Number.parseFloat(cellStyle.width)).toBeGreaterThanOrEqual(44);
+    expect(Number.parseFloat(cellStyle.height)).toBeGreaterThanOrEqual(44);
+    expect(Number.parseFloat(cellStyle.minWidth)).toBeGreaterThanOrEqual(44);
+    expect(Number.parseFloat(cellStyle.minHeight)).toBeGreaterThanOrEqual(44);
+    expect(cellStyle.placeItems).toBe("center");
+
+    const surface = container.querySelector(".letter-cells__input-surface");
+    expect(surface).not.toBeNull();
+    const surfaceStyle = getComputedStyle(surface as Element);
+
+    for (const style of [inputStyle, surfaceStyle]) {
+      expect(style.borderTopWidth).toBe("0px");
+      expect(style.borderRightWidth).toBe("0px");
+      expect(style.borderBottomWidth).toBe("0px");
+      expect(style.borderLeftWidth).toBe("0px");
+    }
+    expect(cellStyle.borderTopStyle).toBe("none");
+    expect(cellStyle.borderRightStyle).toBe("none");
+    expect(cellStyle.borderLeftStyle).toBe("none");
   });
 
   it("moves back and deletes the previous letter from an empty cell", async () => {
