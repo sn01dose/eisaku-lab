@@ -137,11 +137,11 @@ export interface WritingRubric {
   needsExample?: boolean
   needsConclusion?: boolean
 }
-
 export interface WritingTask {
   id: string
   stage: StageId
   type: WritingTaskType
+  sentencePatternId?: string
   promptJa: string
   simplifiedJapanese?: string[]
   wordBank?: string[]

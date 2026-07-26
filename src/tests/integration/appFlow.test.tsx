@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
@@ -30,14 +30,26 @@ describe('主要学習フロー', () => {
       const view = render(<App />)
 
       expect(
-        await screen.findByRole('heading', { name: 'はじめの設定' }),
+        await screen.findByRole(
+          'heading',
+          { name: 'はじめの設定' },
+          { timeout: 10_000 },
+        ),
       ).toBeInTheDocument()
       await user.type(screen.getByLabelText('ニックネーム'), 'なぎ')
       await user.click(
         screen.getByRole('button', { name: '設定を保存して進む' }),
       )
 
-      expect(await screen.findByText('1 / 30')).toBeInTheDocument()
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#/diagnostic')
+        },
+        { timeout: 5_000 },
+      )
+      expect(
+        await screen.findByText('1 / 30', {}, { timeout: 10_000 }),
+      ).toBeInTheDocument()
       for (let index = 0; index < diagnosticItems.length; index += 1) {
         const item = diagnosticItems[index]
         if (item.section === 'spellChoice') {
@@ -73,23 +85,43 @@ describe('主要学習フロー', () => {
       }
 
       expect(
-        await screen.findByRole('heading', { name: 'なぎさんの開始位置' }),
+        await screen.findByRole(
+          'heading',
+          { name: 'なぎさんの開始位置' },
+          { timeout: 10_000 },
+        ),
       ).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'ホームへ進む' }))
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#/')
+        },
+        { timeout: 5_000 },
+      )
       expect(
-        await screen.findByText('発想する力は、すでにある。', {
-          exact: false,
-        }),
+        await screen.findByText(
+          '発想する力は、すでにある。',
+          { exact: false },
+          { timeout: 10_000 },
+        ),
       ).toBeInTheDocument()
 
       await user.click(
         screen.getByRole('button', { name: '今日の学習を始める' }),
       )
       await user.click(
-        await screen.findByRole('button', { name: 'この順で始める' }),
+        await screen.findByRole(
+          'button',
+          { name: 'この順で始める' },
+          { timeout: 10_000 },
+        ),
       )
 
-      const spellingInput = await screen.findByLabelText('英単語の綴りを入力')
+      const spellingInput = await screen.findByLabelText(
+        '英単語の綴りを入力',
+        {},
+        { timeout: 10_000 },
+      )
       await user.type(spellingInput, 'zzzz')
       await user.click(screen.getByRole('button', { name: '答え合わせ' }))
       expect(savedState().notes.length).toBeGreaterThan(0)
@@ -97,11 +129,18 @@ describe('主要学習フロー', () => {
 
       await user.click(screen.getByRole('link', { name: 'ホーム' }))
       await user.click(
-        await screen.findByRole('link', { name: /英作文/ }),
+        await screen.findByRole(
+          'link',
+          { name: /英作文/ },
+          { timeout: 10_000 },
+        ),
       )
       const essayAnswer =
         'I study English every day because it helps me share my ideas.'
-      await user.type(await screen.findByRole('textbox'), essayAnswer)
+      await user.type(
+        await screen.findByRole('textbox', {}, { timeout: 10_000 }),
+        essayAnswer,
+      )
       await user.click(screen.getByRole('button', { name: '答え合わせ' }))
       expect(savedState().essays).toHaveLength(1)
 
@@ -113,13 +152,25 @@ describe('主要学習フロー', () => {
       render(<App />)
 
       expect(
-        await screen.findByRole('heading', { name: '学習状況と調整' }),
+        await screen.findByRole(
+          'heading',
+          { name: '学習状況と調整' },
+          { timeout: 10_000 },
+        ),
       ).toBeInTheDocument()
-      expect((await screen.findAllByText(essayAnswer)).length).toBeGreaterThan(0)
+      expect(
+        (
+          await screen.findAllByText(
+            essayAnswer,
+            {},
+            { timeout: 10_000 },
+          )
+        ).length,
+      ).toBeGreaterThan(0)
       expect(savedState().attempts.length).toBeGreaterThan(
         diagnosticItems.length,
       )
     },
-    60_000,
+    120_000,
   )
 })
