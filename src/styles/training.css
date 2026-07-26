@@ -12,6 +12,12 @@
   margin-bottom: 0;
 }
 
+.mini-lesson__examples {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
 .word-bank {
   display: flex;
   flex-wrap: wrap;

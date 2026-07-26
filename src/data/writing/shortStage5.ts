@@ -1,4 +1,9 @@
-import { makeShortWritingTasks, type ShortWritingSeed } from '../factories'
+import {
+  makeShortWritingTasks,
+  withRequiredSimplifiedJapanese,
+  type ShortWritingSeed,
+} from '../factories'
+import { legacyAdvancedSimplifications } from './legacyAdvancedSimplifications'
 
 const seeds = [
   ['技術の進歩そのものではなく、それをどのように使うかが社会への影響を決めます。', ['Technology itself does not determine its social impact; how we use it does.', 'The effect of technology on society depends less on the technology itself than on how people use it.'], ['writing.paraphrase', 'writing.argument'], ['literalTranslation', 'wordOrder'], 'deliteralize', '科学技術', '「AではなくB」を明確に対比し、抽象的な関係を一文で整理します。', undefined, undefined, ['技術だけで社会への影響は決まりません。', '人々の使い方が影響を決めます。']],
@@ -15,4 +20,7 @@ const seeds = [
   ['多様な意見を集めるだけでは不十分で、それらが意思決定に反映される仕組みが必要です。', ['Collecting diverse opinions is not enough; we also need a process that includes them in decision-making.', 'It is insufficient merely to hear different views. There must also be a system for using them in actual decisions.'], ['writing.argument', 'writing.relativeClause'], ['pronoun', 'literalTranslation'], 'deliteralize', '地域社会', '「集める」と「反映する」を別の行動として明示します。'],
 ] satisfies readonly ShortWritingSeed[]
 
-export const shortWritingStage5 = makeShortWritingTasks(5, 79, seeds)
+export const shortWritingStage5 = withRequiredSimplifiedJapanese(
+  makeShortWritingTasks(5, 79, seeds),
+  legacyAdvancedSimplifications,
+)

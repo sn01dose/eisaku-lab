@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import { AppShell, Button, Card } from '../components'
 import { APP_NAME, APP_TAGLINE, STAGES } from '../app/constants'
 import { useAppState } from '../app/providers/AppStateProvider'
+import {
+  dateKey,
+  differenceInDays,
+} from '../domain/plan/buildStudyPlan'
 import { formatShortDate } from '../utils/format'
 
 export function HomePage(): React.JSX.Element {
@@ -17,6 +21,16 @@ export function HomePage(): React.JSX.Element {
   const targetItems = minutes / 3
   const newItems = Math.max(1, Math.round(targetItems * 0.2))
   const latestAttempt = state.attempts.at(-1)
+  const planWindow =
+    state.plan?.stageWindows.find(
+      (window) => window.stage === profile?.currentStage,
+    ) ?? state.plan?.stageWindows[0]
+  const planDaysLeft = planWindow
+    ? Math.max(
+        0,
+        differenceInDays(planWindow.endDate, dateKey(new Date(now))) + 1,
+      )
+    : null
 
   return (
     <AppShell activePath="/">
@@ -48,6 +62,21 @@ export function HomePage(): React.JSX.Element {
           </div>
           <span className="stage-stamp">{stage.name}</span>
         </div>
+        {!profile?.targetDate && (
+          <p className="plan-summary">
+            受験予定日を入れると、残り時間から計画を作ります。
+          </p>
+        )}
+        {state.plan?.phase === 'build' && planWindow && (
+          <p className="plan-summary">
+            Stage {planWindow.stage} の予定期間：あと{planDaysLeft}日
+          </p>
+        )}
+        {state.plan?.phase === 'final' && (
+          <p className="plan-summary">
+            ここからは新しい内容を増やしません。書いた英文を確かなものにします。
+          </p>
+        )}
         <Button fullWidth onClick={() => (window.location.hash = '#/today')}>
           今日の学習を始める
         </Button>

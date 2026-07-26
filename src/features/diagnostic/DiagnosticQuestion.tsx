@@ -1,5 +1,6 @@
 import type { FocusEvent } from 'react'
 import { Button } from '../../components'
+import { ENGLISH_INPUT_PROPS } from '../../components/forms/inputPolicy'
 import type { DiagnosticItem } from '../../domain/learner/types'
 import { useSpeech } from '../../services/speech'
 import { DIAGNOSTIC_SECTION_LABELS } from './labels'
@@ -10,16 +11,6 @@ interface DiagnosticQuestionProps {
   speechEnabled: boolean
   onChange: (answer: string | string[]) => void
 }
-
-const englishInputProps = {
-  autoCapitalize: 'off',
-  autoComplete: 'off',
-  autoCorrect: 'off',
-  enterKeyHint: 'done',
-  inputMode: 'text',
-  lang: 'en',
-  spellCheck: false,
-} as const
 
 function scrollFocusedControl(
   event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -180,9 +171,11 @@ export function DiagnosticQuestion({
         <label className="lab-field">
           <span className="lab-field__label">綴り</span>
           <input
-            {...englishInputProps}
+            {...ENGLISH_INPUT_PROPS}
             autoFocus
             className="lab-input lab-input--spelling"
+            data-input-policy-id="diagnostic.dictation"
+            enterKeyHint="done"
             onChange={(event) => onChange(event.target.value)}
             onFocus={scrollFocusedControl}
             value={textValue(answer)}
@@ -203,9 +196,11 @@ export function DiagnosticQuestion({
         <label className="lab-field">
           <span className="lab-field__label">単語全体を入力</span>
           <input
-            {...englishInputProps}
+            {...ENGLISH_INPUT_PROPS}
             autoFocus
             className="lab-input lab-input--spelling"
+            data-input-policy-id="diagnostic.fillLetters"
+            enterKeyHint="done"
             onChange={(event) => onChange(event.target.value)}
             onFocus={scrollFocusedControl}
             value={textValue(answer)}
@@ -252,15 +247,13 @@ export function DiagnosticQuestion({
       <label className="lab-field">
         <span className="lab-field__label">英文</span>
         <textarea
-          autoCapitalize="sentences"
-          autoComplete="off"
+          {...ENGLISH_INPUT_PROPS}
           autoFocus
           className="lab-textarea en-reading"
-          lang="en"
+          data-input-policy-id="diagnostic.composition"
           onChange={(event) => onChange(event.target.value)}
           onFocus={scrollFocusedControl}
           rows={isOpinion ? 8 : 4}
-          spellCheck={false}
           value={textValue(answer)}
         />
       </label>

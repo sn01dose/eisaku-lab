@@ -9,8 +9,9 @@ import {
   createMasteryRecord,
   isStableMastery,
 } from '../../domain/mastery/updateMastery'
+import type { StudyPlan } from '../../domain/plan/types'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 type JsonRecord = Record<string, unknown>
 
@@ -97,10 +98,26 @@ function normalizeProfile(value: unknown, now: Date): LearnerProfile | null {
   }
 }
 
+function normalizePlan(value: unknown): StudyPlan | null {
+  if (!isRecord(value)) return null
+  if (
+    typeof value.generatedAt !== 'string' ||
+    typeof value.targetDate !== 'string' ||
+    typeof value.finalPhaseStartDate !== 'string' ||
+    !Array.isArray(value.stageWindows) ||
+    !Array.isArray(value.carryOverSkills)
+  ) {
+    return null
+  }
+  return value as unknown as StudyPlan
+}
+
 export function createInitialState(now = new Date()): AppState {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: null,
+    plan: null,
+    customSpellingWords: {},
     cards: {},
     attempts: [],
     mastery: createMasteryRecord(now),
@@ -113,8 +130,10 @@ export function createInitialState(now = new Date()): AppState {
 
 function migrateVersionZero(raw: JsonRecord, now: Date): AppState {
   return {
-    schemaVersion: 1,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: normalizeProfile(raw.profile ?? raw.learner, now),
+    plan: null,
+    customSpellingWords: {},
     cards: isRecord(raw.cards)
       ? (raw.cards as AppState['cards'])
       : {},
@@ -139,6 +158,10 @@ function normalizeVersionOne(raw: JsonRecord, now: Date): AppState {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: normalizeProfile(raw.profile, now),
+    plan: null,
+    customSpellingWords: isRecord(raw.customSpellingWords)
+      ? (raw.customSpellingWords as AppState['customSpellingWords'])
+      : {},
     cards: isRecord(raw.cards) ? (raw.cards as AppState['cards']) : {},
     attempts: Array.isArray(raw.attempts)
       ? (raw.attempts as AppState['attempts']).slice(-1000)
@@ -157,6 +180,13 @@ function normalizeVersionOne(raw: JsonRecord, now: Date): AppState {
   }
 }
 
+function normalizeVersionTwo(raw: JsonRecord, now: Date): AppState {
+  return {
+    ...normalizeVersionOne(raw, now),
+    plan: normalizePlan(raw.plan),
+  }
+}
+
 export function migrateState(raw: unknown, now = new Date()): AppState {
   if (!isRecord(raw)) {
     throw new Error('バックアップの形式が正しくありません。')
@@ -172,5 +202,6 @@ export function migrateState(raw: unknown, now = new Date()): AppState {
     )
   }
   if (version === 0) return migrateVersionZero(raw, now)
-  return normalizeVersionOne(raw, now)
+  if (version === 1) return normalizeVersionOne(raw, now)
+  return normalizeVersionTwo(raw, now)
 }

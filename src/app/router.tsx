@@ -68,6 +68,11 @@ const WritingPage = lazy(() =>
     default: module.WritingPage,
   })),
 )
+const WritingFeedbackImportPage = lazy(() =>
+  import('../pages/WritingFeedbackImportPage').then((module) => ({
+    default: module.WritingFeedbackImportPage,
+  })),
+)
 
 function ScrollToTop(): null {
   const { pathname } = useLocation()
@@ -137,6 +142,10 @@ export function AppRouter(): React.JSX.Element {
                   <Route path="/today" element={<TodayPage />} />
                   <Route path="/spelling" element={<SpellingPage />} />
                   <Route path="/writing" element={<WritingPage />} />
+                  <Route
+                    path="/writing/feedback/:essayId"
+                    element={<WritingFeedbackImportPage />}
+                  />
                   <Route path="/simplify" element={<SimplifyPage />} />
                   <Route
                     path="/notes"

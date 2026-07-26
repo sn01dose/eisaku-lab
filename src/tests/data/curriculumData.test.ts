@@ -11,7 +11,7 @@ import {
 } from '../../data'
 
 const expectedSpelling: Record<StageId, number> = { 1: 110, 2: 100, 3: 100, 4: 100, 5: 100, 6: 90 }
-const expectedShortWriting: Record<StageId, number> = { 1: 55, 2: 55, 3: 50, 4: 50, 5: 45, 6: 45 }
+const expectedShortWriting: Record<StageId, number> = { 1: 55, 2: 55, 3: 50, 4: 50, 5: 75, 6: 75 }
 const expectedExtendedWriting: Record<StageId, number> = { 1: 3, 2: 5, 3: 10, 4: 14, 5: 14, 6: 14 }
 const expectedSimplification: Record<StageId, number> = { 1: 0, 2: 8, 3: 14, 4: 18, 5: 16, 6: 14 }
 const stages: StageId[] = [1, 2, 3, 4, 5, 6]
@@ -40,8 +40,8 @@ describe('教材の数量とステージ分布', () => {
     expect(distribution(spellingWords)).toEqual(expectedSpelling)
   })
 
-  it('短文300問を指定比率で収録している', () => {
-    expect(shortWritingTasks).toHaveLength(300)
+  it('短文360問を指定比率で収録している', () => {
+    expect(shortWritingTasks).toHaveLength(360)
     expect(distribution(shortWritingTasks)).toEqual(expectedShortWriting)
   })
 

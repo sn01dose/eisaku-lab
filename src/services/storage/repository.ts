@@ -1,4 +1,5 @@
 import type { AppState } from '../../domain/learner/types'
+import { refreshStudyPlan } from '../../domain/plan/refreshStudyPlan'
 import {
   createInitialState,
   CURRENT_SCHEMA_VERSION,
@@ -35,22 +36,24 @@ export class AppStateRepository {
   }
 
   load(): AppState {
-    if (!this.storage) return this.memoryState ?? createInitialState()
+    if (!this.storage) {
+      return refreshStudyPlan(this.memoryState ?? createInitialState())
+    }
     const serialized = this.storage.getItem(this.key)
     if (!serialized) return createInitialState()
     try {
-      return migrateState(JSON.parse(serialized))
+      return refreshStudyPlan(migrateState(JSON.parse(serialized)))
     } catch {
       return createInitialState()
     }
   }
 
   save(state: AppState): AppState {
-    const normalized = migrateState({
+    const normalized = refreshStudyPlan(migrateState({
       ...state,
       schemaVersion: CURRENT_SCHEMA_VERSION,
       attempts: state.attempts.slice(-1000),
-    })
+    }))
     if (this.storage) {
       this.storage.setItem(this.key, JSON.stringify(normalized))
     } else {

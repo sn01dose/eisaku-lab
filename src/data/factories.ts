@@ -125,6 +125,23 @@ export const makeShortWritingTasks = (
     }
   })
 
+export type SimplifiedJapaneseByTaskId = Readonly<
+  Record<string, readonly [string, ...string[]]>
+>
+
+export const withRequiredSimplifiedJapanese = (
+  tasks: readonly WritingTask[],
+  simplifications: SimplifiedJapaneseByTaskId,
+): WritingTask[] =>
+  tasks.map((task) => {
+    const simplifiedJapanese =
+      task.simplifiedJapanese ?? simplifications[task.id]
+    if (!simplifiedJapanese) {
+      throw new Error(`${task.id} に simplifiedJapanese がありません。`)
+    }
+    return { ...task, simplifiedJapanese: [...simplifiedJapanese] }
+  })
+
 export interface PatternVariant {
   promptJa: string
   modelAnswers: readonly [string, string, ...string[]]
@@ -189,6 +206,68 @@ export const makeSentencePatternTasks = (
         explanation: pattern.explanation,
         estimatedMinutes: pattern.stage <= 2 ? 2 : 3,
         theme: variant.theme,
+      }
+      nextNumber += 1
+      return task
+    }),
+  )
+}
+
+export type AdvancedTranslationVariant = readonly [
+  promptJa: string,
+  simplifiedJapanese: readonly [string, ...string[]],
+  safeAnswer: string,
+  naturalAnswer: string,
+  theme: string,
+]
+
+export interface AdvancedTranslationPatternSeed {
+  sentencePatternId: string
+  requiredSkills: readonly SkillId[]
+  commonErrors: readonly WritingErrorTag[]
+  explanation: string
+  variants: readonly [
+    AdvancedTranslationVariant,
+    AdvancedTranslationVariant,
+    AdvancedTranslationVariant,
+    AdvancedTranslationVariant,
+    AdvancedTranslationVariant,
+    ...AdvancedTranslationVariant[],
+  ]
+}
+
+export const makeAdvancedTranslationTasks = (
+  stage: 5 | 6,
+  firstNumber: number,
+  patterns: readonly AdvancedTranslationPatternSeed[],
+): WritingTask[] => {
+  let nextNumber = firstNumber
+  return patterns.flatMap((pattern) =>
+    pattern.variants.map(([promptJa, simplifiedJapanese, safeAnswer, naturalAnswer, theme]) => {
+      const task: WritingTask = {
+        id: `wr-${String(nextNumber).padStart(4, '0')}`,
+        stage,
+        type: 'translatePlain',
+        sentencePatternId: pattern.sentencePatternId,
+        promptJa,
+        simplifiedJapanese: [...simplifiedJapanese],
+        modelAnswers: [safeAnswer, naturalAnswer],
+        requiredSkills: [
+          ...new Set<SkillId>([
+            'writing.translation',
+            'writing.japaneseSimplification',
+            ...pattern.requiredSkills,
+          ]),
+        ],
+        commonErrors: [
+          ...new Set<WritingErrorTag>([
+            'literalTranslation',
+            ...pattern.commonErrors,
+          ]),
+        ],
+        explanation: pattern.explanation,
+        estimatedMinutes: 3,
+        theme,
       }
       nextNumber += 1
       return task

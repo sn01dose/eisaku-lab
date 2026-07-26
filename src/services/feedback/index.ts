@@ -1,4 +1,5 @@
+export * from './buildReviewPrompt'
 export * from './localFeedback'
-export * from './prompt'
+export * from './parseReviewOutput'
 export * from './remoteFeedback'
 export * from './types'

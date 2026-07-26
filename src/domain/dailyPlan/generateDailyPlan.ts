@@ -3,6 +3,7 @@ import type {
   SkillId,
   StageId,
 } from '../learner/types'
+import type { StudyPlan } from '../plan/types'
 import {
   createSessionTimingPlan,
   TIMED_LEARNING_ACTIVITIES,
@@ -23,6 +24,7 @@ export interface DailyPlanCandidate {
   estimatedMinutes?: number
   priority?: number
   dueAt?: string
+  mandatory?: boolean
 }
 
 export interface DailyPlan {
@@ -43,6 +45,7 @@ export interface DailyPlanInput {
   weak: readonly DailyPlanCandidate[]
   newItems: readonly DailyPlanCandidate[]
   averageResponseTimeMs?: ResponseTimeAverages
+  phase?: StudyPlan['phase']
   now?: Date
 }
 
@@ -124,7 +127,7 @@ function toEntries(input: DailyPlanInput): CandidateEntry[] {
       source: 'weak' as const,
       activity: inferActivity(candidate, 'weak'),
     })),
-    ...input.newItems.map((candidate) => ({
+    ...(input.phase === 'final' ? [] : input.newItems).map((candidate) => ({
       candidate,
       source: 'new' as const,
       activity: inferActivity(candidate, 'new'),
@@ -151,6 +154,9 @@ function chooseRatios(
   target: number,
   input: DailyPlanInput,
 ): Record<Source, number> {
+  if (input.phase === 'final') {
+    return { review: 0.7, weak: 0.3, new: 0 }
+  }
   if (input.review.length > target) {
     return { review: 0.7, weak: 0.2, new: 0.1 }
   }
@@ -239,17 +245,39 @@ function ensureFoundationItem(
   let replaceIndex = selected.findLastIndex(
     (entry) =>
       entry.activity === foundation.activity &&
+      !entry.candidate.mandatory &&
       entry.candidate.stage >= currentStage,
   )
   if (replaceIndex < 0) {
     replaceIndex = selected.findLastIndex(
-      ({ candidate }) => candidate.stage >= currentStage,
+      ({ candidate }) => !candidate.mandatory && candidate.stage >= currentStage,
     )
   }
   if (replaceIndex < 0) return
   used.delete(candidateKey(selected[replaceIndex].candidate))
   used.add(candidateKey(foundation.candidate))
   selected[replaceIndex] = foundation
+}
+
+function ensureMandatoryItems(
+  selected: CandidateEntry[],
+  entries: readonly CandidateEntry[],
+  used: Set<string>,
+): void {
+  for (const mandatory of entries
+    .filter(({ candidate }) => candidate.mandatory)
+    .sort((left, right) => byPriority(left.candidate, right.candidate))) {
+    const key = candidateKey(mandatory.candidate)
+    if (used.has(key)) continue
+    const replaceIndex = selected.findLastIndex(
+      (entry) =>
+        entry.activity === mandatory.activity && !entry.candidate.mandatory,
+    )
+    if (replaceIndex < 0) continue
+    used.delete(candidateKey(selected[replaceIndex].candidate))
+    used.add(key)
+    selected[replaceIndex] = mandatory
+  }
 }
 
 function toSessionItem(
@@ -309,6 +337,7 @@ export function generateDailyPlan(input: DailyPlanInput): DailyPlan {
       used,
     )
   }
+  ensureMandatoryItems(selected, entries, used)
   ensureFoundationItem(selected, entries, used, input.currentStage)
 
   const counts = selected.reduce<Counts>(

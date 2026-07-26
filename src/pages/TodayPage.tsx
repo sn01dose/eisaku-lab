@@ -10,6 +10,7 @@ import {
 import { generateDailyPlan } from '../domain/dailyPlan/generateDailyPlan'
 import type { SessionItem, SessionLog } from '../domain/learner/types'
 import { buildDailyCandidates } from '../features/dailyPlan/buildCandidates'
+import { MiniLessonActivity } from '../features/dailyPlan/MiniLessonActivity'
 import { SimplificationTrainer } from '../features/japaneseSimplification/SimplificationTrainer'
 import { SpellingTrainer } from '../features/spelling/SpellingTrainer'
 import { WritingTrainer } from '../features/writing/WritingTrainer'
@@ -37,6 +38,10 @@ export function TodayPage(): React.JSX.Element {
   const { state, updateState } = useAppState()
   const [reflection, setReflection] = useState('')
   const dateKey = localDateKey()
+  const availableSpellingWords = useMemo(
+    () => [...spellingWords, ...Object.values(state.customSpellingWords)],
+    [state.customSpellingWords],
+  )
   const session = state.sessions.find((entry) => entry.plannedFor === dateKey)
   const candidates = useMemo(() => buildDailyCandidates(state), [state])
   const plan = useMemo(
@@ -44,9 +49,15 @@ export function TodayPage(): React.JSX.Element {
       generateDailyPlan({
         dailyMinutes: state.profile?.dailyMinutes ?? 30,
         currentStage: state.profile?.currentStage ?? 1,
+        phase: state.plan?.phase,
         ...candidates,
       }),
-    [candidates, state.profile?.currentStage, state.profile?.dailyMinutes],
+    [
+      candidates,
+      state.plan?.phase,
+      state.profile?.currentStage,
+      state.profile?.dailyMinutes,
+    ],
   )
 
   const startSession = () => {
@@ -99,6 +110,10 @@ export function TodayPage(): React.JSX.Element {
 
   const active = session?.items[session.currentIndex]
   const completed = session?.status === 'completed'
+  const activeMiniLesson =
+    active?.kind === 'miniLesson'
+      ? miniLessons.find((lesson) => lesson.id === active.refId)
+      : undefined
 
   return (
     <AppShell activePath="/today">
@@ -111,6 +126,11 @@ export function TodayPage(): React.JSX.Element {
 
       {!session && (
         <>
+          {state.plan?.phase === 'final' && (
+            <p className="notice">
+              ここからは新しい内容を増やしません。書いた英文を確かなものにします。
+            </p>
+          )}
           <Card label="自動生成プラン" raised>
             <div className="plan-ratio">
               <span>復習 {plan.counts.review}</span>
@@ -152,14 +172,16 @@ export function TodayPage(): React.JSX.Element {
           </div>
           {active.kind === 'spelling' && (
             <SpellingTrainer
-              items={spellingWords.filter((item) => item.id === active.refId)}
+              items={availableSpellingWords.filter(
+                (item) => item.id === active.refId,
+              )}
               onNext={advance}
             />
           )}
           {active.kind === 'writing' && (
             <WritingTrainer
               tasks={writingTasks.filter((item) => item.id === active.refId)}
-              spellingWords={spellingWords}
+              spellingWords={availableSpellingWords}
               miniLessons={miniLessons}
               onNext={advance}
             />
@@ -170,11 +192,15 @@ export function TodayPage(): React.JSX.Element {
               onNext={advance}
             />
           )}
+          {active.kind === 'miniLesson' && activeMiniLesson && (
+            <MiniLessonActivity lesson={activeMiniLesson} onNext={advance} />
+          )}
           {active.kind === 'reflection' && (
             <Card label="振り返り｜2分">
               <label className="answer-field">
                 <span className="field-label">今日ひとつ増えた型・綴り</span>
                 <textarea
+                  data-input-policy-id="today.reflection"
                   rows={4}
                   value={reflection}
                   onChange={(event) => setReflection(event.target.value)}

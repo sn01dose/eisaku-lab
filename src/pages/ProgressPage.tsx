@@ -10,6 +10,62 @@ interface DaySummary {
   correct: number
 }
 
+interface TimedWritingPoint {
+  id: string
+  label: string
+  words: number
+}
+
+function TimedWritingTrend({
+  points,
+}: {
+  points: readonly TimedWritingPoint[]
+}): React.JSX.Element {
+  if (points.length === 0) {
+    return (
+      <p className="chart-empty">
+        制限時間付きの英作文を保存すると、ここに時間内語数が残ります。
+      </p>
+    )
+  }
+  const maximum = Math.max(10, ...points.map(({ words }) => words))
+  const coordinates = points.map((point, index) => ({
+    ...point,
+    x: points.length === 1 ? 160 : 16 + (index / (points.length - 1)) * 288,
+    y: 104 - (point.words / maximum) * 88,
+  }))
+  const line = coordinates.map(({ x, y }) => `${x},${y}`).join(' ')
+
+  return (
+    <>
+      <svg
+        className="timed-word-chart"
+        viewBox="0 0 320 120"
+        role="img"
+        aria-label={`制限時間内に書けた語数の推移。${points
+          .map(({ label, words }) => `${label} ${words}語`)
+          .join('、')}`}
+      >
+        <line x1="16" x2="304" y1="104" y2="104" />
+        <polyline points={line} />
+        {coordinates.map(({ id, x, y, words }) => (
+          <g key={id}>
+            <circle cx={x} cy={y} r="3.5" />
+            <text x={x} y={Math.max(11, y - 8)} textAnchor="middle">
+              {words}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div className="timed-word-labels" aria-hidden="true">
+        {coordinates.map(({ id, label }) => (
+          <span key={id}>{label}</span>
+        ))}
+      </div>
+    </>
+  )
+}
+
 function localDateKey(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -62,6 +118,25 @@ export function ProgressPage(): React.JSX.Element {
   const completedSessions = state.sessions.filter(
     (session) => session.status === 'completed',
   ).length
+  const timedWritingPoints = useMemo<TimedWritingPoint[]>(
+    () =>
+      state.attempts
+        .filter(
+          (attempt) =>
+            attempt.kind === 'writing' &&
+            typeof attempt.withinLimitWordCount === 'number',
+        )
+        .slice(-8)
+        .map((attempt) => {
+          const date = new Date(attempt.at)
+          return {
+            id: attempt.id,
+            label: `${date.getMonth() + 1}/${date.getDate()}`,
+            words: attempt.withinLimitWordCount ?? 0,
+          }
+        }),
+    [state.attempts],
+  )
 
   const masteryGroups = [
     {
@@ -177,6 +252,16 @@ export function ProgressPage(): React.JSX.Element {
             </div>
             <p className="chart-note">
               3日以上に分けて正解した技能を「安定」としています。
+            </p>
+          </Card>
+
+          <Card
+            label="英作文｜制限時間"
+            title="時間内に書けた語数の推移"
+          >
+            <TimedWritingTrend points={timedWritingPoints} />
+            <p className="chart-note">
+              時間を過ぎても入力は止まりません。ここでは時間内の語数だけを比べます。
             </p>
           </Card>
         </div>

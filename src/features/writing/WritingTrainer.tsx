@@ -1,33 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Button, Card, FeedbackDetails, ProgressDots } from '../../components'
+import { ENGLISH_INPUT_PROPS } from '../../components/forms/inputPolicy'
 import { useAppState } from '../../app/providers/AppStateProvider'
-import {
-  boostEaseAfterWriting,
-  createReviewCard,
-} from '../../domain/review/scheduler'
+import { boostEaseAfterWriting, createReviewCard } from '../../domain/review/scheduler'
 import { adjustWritingSupport } from '../../domain/writing/supportLevel'
 import type {
-  Attempt,
-  MiniLesson,
-  MistakeNote,
-  SavedEssay,
-  SpellingWord,
-  WritingErrorTag,
-  WritingTask,
+  Attempt, MiniLesson, MistakeNote, SavedEssay, SpellingWord,
+  WritingErrorTag, WritingTask,
 } from '../../domain/learner/types'
-import {
-  buildFeedbackPrompt,
-  evaluateWritingLocally,
-} from '../../services/feedback'
+import { evaluateWritingLocally } from '../../services/feedback'
 import { uid, wordCount } from '../../utils/format'
 import {
-  knownMisspellings,
-  mainErrorTag,
-  SELF_CHECKS,
-  supportDescription,
+  knownMisspellings, mainErrorTag, SELF_CHECKS, supportDescription,
   writingIsCorrect,
 } from './writingSupport'
 import { WordBank } from './WordBank'
+import { type TimedWritingController } from './timed'
+import { TimedTaskClock } from './timed/TimedTaskClock'
+import { WritingFeedbackActions } from './WritingFeedbackActions'
+import { WritingSelfCheck } from './WritingSelfCheck'
 
 export interface WritingTrainerProps {
   tasks: readonly WritingTask[]
@@ -47,8 +38,10 @@ export function WritingTrainer({
   onNext,
 }: WritingTrainerProps): React.JSX.Element {
   const { state, updateState } = useAppState()
+  const timedController = useRef<TimedWritingController | null>(null)
   const [index, setIndex] = useState(Math.min(initialIndex, Math.max(0, tasks.length - 1)))
   const [answer, setAnswer] = useState('')
+  const [timedPaused, setTimedPaused] = useState(false)
   const [hintLevel, setHintLevel] = useState(0)
   const [feedback, setFeedback] = useState<ReturnType<
     typeof evaluateWritingLocally
@@ -57,6 +50,7 @@ export function WritingTrainer({
     SELF_CHECKS.map(() => false),
   )
   const [copied, setCopied] = useState(false)
+  const [savedEssayId, setSavedEssayId] = useState<string | null>(null)
   const [fallbackType, setFallbackType] = useState<WritingTask['type'] | null>(
     null,
   )
@@ -103,6 +97,8 @@ export function WritingTrainer({
     const result = evaluateWritingLocally(task, answer, spellingWords)
     const correct = writingIsCorrect(task, answer)
     const now = new Date()
+    const timedResult =
+      task.type === 'timed' ? timedController.current?.result() : undefined
     const tag = mainErrorTag(result)
     const attempt: Attempt = {
       id: uid('attempt'),
@@ -113,7 +109,16 @@ export function WritingTrainer({
       input: answer,
       correct,
       hintLevelUsed: hintLevel,
-      responseTimeMs: Math.max(1, Date.now() - startedAt),
+      responseTimeMs: Math.max(
+        1,
+        timedResult?.elapsedMs ?? Date.now() - startedAt,
+      ),
+      ...(timedResult
+        ? {
+            withinLimitWordCount: timedResult.withinTimeWordCount,
+            totalWordCount: timedResult.totalWordCount,
+          }
+        : {}),
       errorTags: tag ? [tag] : [],
       skillIds: task.requiredSkills,
     }
@@ -131,6 +136,15 @@ export function WritingTrainer({
     })
     const misspelled = knownMisspellings(answer, spellingWords)
     const answerTokens = new Set(answer.toLowerCase().match(/[a-z]+/g) ?? [])
+    const essay: SavedEssay = {
+      id: uid('essay'),
+      taskId: task.id,
+      stage: task.stage,
+      answer,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      feedback: result,
+    }
 
     updateState((previous) => {
       const cards = { ...previous.cards }
@@ -191,15 +205,6 @@ export function WritingTrainer({
         }
         notes.unshift(note)
       }
-      const essay: SavedEssay = {
-        id: uid('essay'),
-        taskId: task.id,
-        stage: task.stage,
-        answer,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        feedback: result,
-      }
       return {
         ...previous,
         profile: previous.profile
@@ -212,6 +217,8 @@ export function WritingTrainer({
       }
     })
     setFeedback(result)
+    timedController.current?.clear()
+    setSavedEssayId(essay.id)
     setFallbackType(adjustment.fallbackType)
     setLessonTag(adjustment.miniLessonTriggerTag)
     onProgress?.(task.id, correct)
@@ -220,10 +227,12 @@ export function WritingTrainer({
   const resetFor = (nextIndex: number) => {
     setIndex(nextIndex)
     setAnswer('')
+    setTimedPaused(false)
     setFeedback(null)
     setHintLevel(0)
     setChecked(SELF_CHECKS.map(() => false))
     setCopied(false)
+    setSavedEssayId(null)
     setFallbackType(null)
     setLessonTag(null)
     setStartedAt(Date.now())
@@ -243,6 +252,15 @@ export function WritingTrainer({
         <ProgressDots current={index} total={Math.min(tasks.length, 8)} />
       </div>
       <Card label={`英作文｜Level ${effectiveLevel}`}>
+        {!feedback && task.type === 'timed' && (
+          <TimedTaskClock
+            key={task.id}
+            task={task}
+            answer={answer}
+            controllerRef={timedController}
+            onPausedChange={setTimedPaused}
+          />
+        )}
         <p className="field-label">日本語</p>
         <p className="prompt-main japanese-prompt">{task.promptJa}</p>
         <p className="muted">{supportDescription(effectiveLevel)}</p>
@@ -264,6 +282,7 @@ export function WritingTrainer({
         {effectiveLevel <= 2 && task.wordBank && (
           <WordBank
             words={task.wordBank}
+            disabled={timedPaused}
             onUse={(word) =>
               setAnswer((current) => `${current}${current ? ' ' : ''}${word}`)
             }
@@ -279,18 +298,15 @@ export function WritingTrainer({
         <label className="answer-field">
           <span className="field-label">解答欄</span>
           <textarea
+            {...ENGLISH_INPUT_PROPS}
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             onFocus={(event) =>
               event.currentTarget.scrollIntoView({ block: 'center' })
             }
-            autoCapitalize="sentences"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-            lang="en"
+            data-input-policy-id="writing.answer"
             rows={6}
-            disabled={Boolean(feedback)}
+            disabled={Boolean(feedback) || timedPaused}
           />
           <span className="word-count">
             語数 {wordCount(answer)}
@@ -300,27 +316,16 @@ export function WritingTrainer({
         </label>
 
         {!feedback && (
-          <details className="self-check">
-            <summary>提出前の自己点検</summary>
-            <div className="check-grid">
-              {SELF_CHECKS.map((label, checkIndex) => (
-                <label key={label}>
-                  <input
-                    type="checkbox"
-                    checked={checked[checkIndex]}
-                    onChange={(event) =>
-                      setChecked((current) =>
-                        current.map((value, index) =>
-                          index === checkIndex ? event.target.checked : value,
-                        ),
-                      )
-                    }
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </details>
+          <WritingSelfCheck
+            checked={checked}
+            onChange={(checkIndex, value) =>
+              setChecked((current) =>
+                current.map((currentValue, index) =>
+                  index === checkIndex ? value : currentValue,
+                ),
+              )
+            }
+          />
         )}
 
         {!feedback ? (
@@ -332,7 +337,7 @@ export function WritingTrainer({
             >
               ヒントを増やす
             </Button>
-            <Button onClick={submit} disabled={!answer.trim()}>
+            <Button onClick={submit} disabled={!answer.trim() || timedPaused}>
               答え合わせ
             </Button>
           </div>
@@ -361,18 +366,14 @@ export function WritingTrainer({
                 次は課題を小さく分け、型を確認してからもう一度組み立てます。
               </p>
             )}
-            <div className="secondary-actions">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  void navigator.clipboard
-                    .writeText(buildFeedbackPrompt({ task, answer, stage: task.stage }))
-                    .then(() => setCopied(true))
-                }}
-              >
-                {copied ? 'コピーしました' : 'AI添削用プロンプトをコピー'}
-              </Button>
-            </div>
+            <WritingFeedbackActions
+              answer={answer}
+              copied={copied}
+              savedEssayId={savedEssayId}
+              spellingWords={spellingWords}
+              task={task}
+              onCopied={() => setCopied(true)}
+            />
             <div className="sticky-actions">
               <Button variant="secondary" onClick={() => resetFor(index)}>
                 書き直す

@@ -3,6 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -32,6 +33,36 @@ export function AppStateProvider({
   children: ReactNode
 }): React.JSX.Element {
   const [state, setState] = useState<AppState>(() => loadAppState())
+
+  useEffect(() => {
+    let midnightTimer = 0
+    const refreshPlan = () => {
+      setState((previous) => saveAppState(previous))
+    }
+    const scheduleMidnightRefresh = () => {
+      const now = new Date()
+      const nextDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+      )
+      midnightTimer = window.setTimeout(() => {
+        refreshPlan()
+        scheduleMidnightRefresh()
+      }, Math.max(1_000, nextDay.getTime() - now.getTime() + 250))
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshPlan()
+    }
+    window.addEventListener('focus', refreshPlan)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    scheduleMidnightRefresh()
+    return () => {
+      window.clearTimeout(midnightTimer)
+      window.removeEventListener('focus', refreshPlan)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [])
 
   const updateState = useCallback((updater: StateUpdater) => {
     setState((previous) => {

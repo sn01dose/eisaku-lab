@@ -23,7 +23,7 @@ import {
 
 const stages: StageId[] = [1, 2, 3, 4, 5, 6]
 const spellingTargets = [110, 100, 100, 100, 100, 90]
-const shortWritingTargets = [55, 55, 50, 50, 45, 45]
+const shortWritingTargets = [55, 55, 50, 50, 75, 75]
 const extendedWritingTargets = [3, 5, 10, 14, 14, 14]
 const simplificationTargets = [0, 8, 14, 18, 16, 14]
 
@@ -93,7 +93,7 @@ function expectCleanEnglish(text: string, label: string): void {
 describe('curriculum scale and distribution', () => {
   it('meets every Stage target without thinning Stage 5 or 6', () => {
     expect(spellingWords.length).toBeGreaterThanOrEqual(600)
-    expect(shortWritingTasks.length).toBeGreaterThanOrEqual(300)
+    expect(shortWritingTasks.length).toBeGreaterThanOrEqual(360)
     expect(extendedWritingTasks.length).toBeGreaterThanOrEqual(60)
     expect(simplificationTasks.length).toBeGreaterThanOrEqual(70)
     expect(miniLessons.length).toBeGreaterThanOrEqual(32)

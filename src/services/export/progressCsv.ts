@@ -36,6 +36,8 @@ export function exportAttemptsToCsv(state: AppState): string {
       '正解',
       'ヒントレベル',
       '応答時間ms',
+      '制限時間内語数',
+      '総語数',
       '誤りタグ',
       '技能ID',
     ],
@@ -50,6 +52,8 @@ export function exportAttemptsToCsv(state: AppState): string {
       attempt.correct ? 'はい' : 'いいえ',
       attempt.hintLevelUsed,
       attempt.responseTimeMs,
+      attempt.withinLimitWordCount ?? '',
+      attempt.totalWordCount ?? '',
       attempt.errorTags.join('|'),
       attempt.skillIds.join('|'),
     ])

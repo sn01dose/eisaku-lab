@@ -77,6 +77,7 @@ export function OnboardingPage(): React.JSX.Element {
             <input
               autoComplete="nickname"
               className="lab-input"
+              data-input-policy-id="onboarding.nickname"
               maxLength={20}
               onChange={(event) => setNickname(event.target.value)}
               placeholder="例：ハンギョドン"

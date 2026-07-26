@@ -65,7 +65,10 @@ export function WritingPage(): React.JSX.Element {
       </div>
       <WritingTrainer
         tasks={tasks}
-        spellingWords={spellingWords}
+        spellingWords={[
+          ...spellingWords,
+          ...Object.values(state.customSpellingWords),
+        ]}
         miniLessons={miniLessons}
       />
     </AppShell>

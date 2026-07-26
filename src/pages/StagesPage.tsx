@@ -9,6 +9,7 @@ import {
   writingTasks,
 } from '../data'
 import type { StageId } from '../domain/learner/types'
+import { formatShortDate } from '../utils/format'
 import '../styles/secondary-pages.css'
 
 export function StagesPage(): React.JSX.Element {
@@ -75,6 +76,9 @@ export function StagesPage(): React.JSX.Element {
               dataCounts.shortWriting.byStage[stageId] +
               dataCounts.extendedWriting.byStage[stageId] +
               dataCounts.simplification.byStage[stageId]
+            const planWindow = state.plan?.stageWindows.find(
+              (window) => window.stage === stageId,
+            )
 
             return (
               <Card
@@ -99,6 +103,13 @@ export function StagesPage(): React.JSX.Element {
                     )}
                   </div>
                 </div>
+                {planWindow && (
+                  <p className="stage-card__window">
+                    予定期間：{formatShortDate(planWindow.startDate)}〜
+                    {formatShortDate(planWindow.endDate)}（学習日
+                    {planWindow.days}日）
+                  </p>
+                )}
                 <p className="stage-card__target">{stage.target}</p>
                 <div className="stage-card__facts">
                   <span>教材 {contentCount}件</span>

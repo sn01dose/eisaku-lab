@@ -12,6 +12,9 @@ const newShortTasks = shortWritingTasks.filter((task) => {
   const id = Number(task.id.slice(3))
   return id >= 126 && id <= 325
 })
+const secondWaveShortTasks = shortWritingTasks.filter(
+  (task) => Number(task.id.slice(3)) <= 325,
+)
 const newExtendedTasks = extendedWritingTasks.filter((task) => {
   const id = Number(task.id.slice(3))
   return id >= 326 && id <= 360
@@ -31,14 +34,21 @@ const groupByPattern = (items: typeof shortWritingTasks) => {
 }
 
 describe('英作文教材 pack-02 以降', () => {
-  it('短文を200問追加し、全300問を指定ステージへ配分する', () => {
+  it('短文を200問追加し、第2弾までの300問を指定ステージへ配分する', () => {
     expect([shortWritingPack02.length, shortWritingPack03.length, shortWritingPack04.length]).toEqual([
       65, 67, 68,
     ])
     expect(newShortTasks).toHaveLength(200)
     expect(countStages(newShortTasks)).toEqual({ 1: 30, 2: 35, 3: 32, 4: 35, 5: 33, 6: 35 })
-    expect(shortWritingTasks).toHaveLength(300)
-    expect(countStages(shortWritingTasks)).toEqual({ 1: 55, 2: 55, 3: 50, 4: 50, 5: 45, 6: 45 })
+    expect(secondWaveShortTasks).toHaveLength(300)
+    expect(countStages(secondWaveShortTasks)).toEqual({
+      1: 55,
+      2: 55,
+      3: 50,
+      4: 50,
+      5: 45,
+      6: 45,
+    })
   })
 
   it('段落課題を35題追加し、全60題を指定ステージへ配分する', () => {
@@ -139,6 +149,6 @@ describe('英作文教材 pack-02 以降', () => {
   it('全英作文IDが重複せず、拡充後の段落課題を含む', () => {
     expect(new Set(writingTasks.map((task) => task.id)).size).toBe(writingTasks.length)
     const numericIds = writingTasks.map((task) => Number(task.id.slice(3))).sort((a, b) => a - b)
-    expect(numericIds).toEqual(Array.from({ length: 360 }, (_, index) => index + 1))
+    expect(numericIds).toEqual(Array.from({ length: 420 }, (_, index) => index + 1))
   })
 })
