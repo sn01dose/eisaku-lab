@@ -56,7 +56,7 @@ export function TodayPage(): React.JSX.Element {
       kind: 'reflection',
       refId: dateKey,
       source: 'reflection',
-      estimatedMinutes: 2,
+      estimatedMinutes: plan.timing.reflectionSeconds / 60,
       stage: state.profile?.currentStage ?? 1,
       skillIds: [],
     }

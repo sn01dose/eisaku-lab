@@ -79,7 +79,7 @@ export function OnboardingPage(): React.JSX.Element {
               className="lab-input"
               maxLength={20}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder="例：なぎ"
+              placeholder="例：ハンギョドン"
               required
               value={nickname}
             />

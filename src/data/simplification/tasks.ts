@@ -1,6 +1,6 @@
 import { defineSimplificationTasks } from '../factories'
 
-export const simplificationTasks = defineSimplificationTasks([
+export const baseSimplificationTasks = defineSimplificationTasks([
   {
     id: 'sj-0001',
     stage: 2,
@@ -147,7 +147,7 @@ export const simplificationTasks = defineSimplificationTasks([
     ],
     modelEn: [
       'Students need different kinds of help. Giving everyone the same support is not always fair.',
-      'One student may need a device, while another needs a teacher’s explanation. Fair support changes according to need.',
+      "One student may need a device, while another needs a teacher's explanation. Fair support changes according to need.",
     ],
     explanation: '抽象語「公平」を、異なる必要に対して支援を変えることとして具体化します。',
   },
@@ -303,6 +303,6 @@ export const simplificationTasks = defineSimplificationTasks([
   },
 ])
 
-export const simplificationTaskById = new Map(
-  simplificationTasks.map((task) => [task.id, task]),
+export const baseSimplificationTaskById = new Map(
+  baseSimplificationTasks.map((task) => [task.id, task]),
 )

@@ -85,6 +85,7 @@ export type ShortWritingSeed = readonly [
   wordBank?: readonly string[],
   sentenceFrame?: string,
   simplifiedJapanese?: readonly string[],
+  sentencePatternId?: string,
 ]
 
 export const makeShortWritingTasks = (
@@ -104,11 +105,13 @@ export const makeShortWritingTasks = (
       wordBank,
       sentenceFrame,
       simplifiedJapanese,
+      sentencePatternId,
     ] = seed
     return {
       id: `wr-${String(firstNumber + index).padStart(4, '0')}`,
       stage,
       type,
+      ...(sentencePatternId ? { sentencePatternId } : {}),
       promptJa,
       ...(simplifiedJapanese ? { simplifiedJapanese: [...simplifiedJapanese] } : {}),
       ...(wordBank ? { wordBank: [...wordBank] } : {}),
@@ -121,6 +124,77 @@ export const makeShortWritingTasks = (
       theme,
     }
   })
+
+export interface PatternVariant {
+  promptJa: string
+  modelAnswers: readonly [string, string, ...string[]]
+  theme: string
+  simplifiedJapanese?: readonly string[]
+}
+
+export interface SentencePatternSeed {
+  sentencePatternId: string
+  stage: StageId
+  sentenceFrame: string
+  requiredSkills: readonly SkillId[]
+  commonErrors: readonly WritingErrorTag[]
+  explanation: string
+  variants: readonly [PatternVariant, PatternVariant, PatternVariant, PatternVariant, ...PatternVariant[]]
+}
+
+const supportedTypes: Record<StageId, readonly WritingTaskType[]> = {
+  1: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'reorder', 'cloze'],
+  2: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'combine', 'deliteralize'],
+  3: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'combine', 'deliteralize'],
+  4: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'combine', 'deliteralize'],
+  5: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'combine', 'deliteralize'],
+  6: ['translateWithBank', 'translateWithFrame', 'translatePlain', 'combine', 'deliteralize'],
+}
+
+const makeWordBank = (answer: string): string[] => {
+  const words = answer
+    .replace(/[.,;:!?"'()]/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+  const midpoint = Math.ceil(words.length / 2)
+  return [...words.slice(midpoint), ...words.slice(0, midpoint)]
+}
+
+export const makeSentencePatternTasks = (
+  firstNumber: number,
+  patterns: readonly SentencePatternSeed[],
+): WritingTask[] => {
+  let nextNumber = firstNumber
+  return patterns.flatMap((pattern) =>
+    pattern.variants.map((variant, index) => {
+      const type = supportedTypes[pattern.stage][index % supportedTypes[pattern.stage].length]
+      const task: WritingTask = {
+        id: `wr-${String(nextNumber).padStart(4, '0')}`,
+        stage: pattern.stage,
+        type,
+        sentencePatternId: pattern.sentencePatternId,
+        promptJa: variant.promptJa,
+        ...(variant.simplifiedJapanese
+          ? { simplifiedJapanese: [...variant.simplifiedJapanese] }
+          : {}),
+        ...(type === 'translateWithBank'
+          ? { wordBank: makeWordBank(variant.modelAnswers[0]) }
+          : {}),
+        ...(type === 'translateWithFrame' || type === 'cloze'
+          ? { sentenceFrame: pattern.sentenceFrame }
+          : {}),
+        modelAnswers: [...variant.modelAnswers],
+        requiredSkills: [...pattern.requiredSkills],
+        commonErrors: [...pattern.commonErrors],
+        explanation: pattern.explanation,
+        estimatedMinutes: pattern.stage <= 2 ? 2 : 3,
+        theme: variant.theme,
+      }
+      nextNumber += 1
+      return task
+    }),
+  )
+}
 
 export type ExtendedWritingSeed = readonly [
   promptJa: string,

@@ -41,8 +41,8 @@ const stage2Seeds = [
   [
     'あなたに合う英単語の覚え方を説明してください。理由と具体例を含めましょう。',
     [
-      'The best way for me to learn English words is to test myself. First, I look at a word and listen to it. Then I hide it and try to type it. For example, I learned “environment” by recalling it on three different days.',
-      'I remember words better when I divide them into meaningful parts. I learned “development” as “de,” “velop,” and “ment.” After checking the parts, I close the answer and write the whole word from memory. This method shows me exactly which part I forget.',
+      'The best way for me to learn English words is to test myself. First, I look at a word and listen to it. Then I hide it and try to type it. For example, I learned "environment" by recalling it on three different days.',
+      'I remember words better when I divide them into meaningful parts. I learned "development" as "de," "velop," and "ment." After checking the parts, I close the answer and write the whole word from memory. This method shows me exactly which part I forget.',
     ],
     ['writing.paragraphStructure', 'writing.connector', 'writing.argument'],
     ['runOn', 'spelling', 'wordOrder'],

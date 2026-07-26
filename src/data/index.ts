@@ -10,6 +10,7 @@ import {
 } from './writing'
 
 export * from './diagnostics'
+export * from './index/index'
 export * from './lessons'
 export * from './simplification'
 export * from './spelling'

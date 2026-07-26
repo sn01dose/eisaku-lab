@@ -10,10 +10,10 @@ import {
   writingTasks,
 } from '../../data'
 
-const expectedSpelling: Record<StageId, number> = { 1: 40, 2: 30, 3: 25, 4: 20, 5: 20, 6: 15 }
-const expectedShortWriting: Record<StageId, number> = { 1: 25, 2: 20, 3: 18, 4: 15, 5: 12, 6: 10 }
-const expectedExtendedWriting: Record<StageId, number> = { 1: 2, 2: 3, 3: 5, 4: 6, 5: 5, 6: 4 }
-const expectedSimplification: Record<StageId, number> = { 1: 0, 2: 3, 3: 4, 4: 5, 5: 4, 6: 4 }
+const expectedSpelling: Record<StageId, number> = { 1: 110, 2: 100, 3: 100, 4: 100, 5: 100, 6: 90 }
+const expectedShortWriting: Record<StageId, number> = { 1: 55, 2: 55, 3: 50, 4: 50, 5: 45, 6: 45 }
+const expectedExtendedWriting: Record<StageId, number> = { 1: 3, 2: 5, 3: 10, 4: 14, 5: 14, 6: 14 }
+const expectedSimplification: Record<StageId, number> = { 1: 0, 2: 8, 3: 14, 4: 18, 5: 16, 6: 14 }
 const stages: StageId[] = [1, 2, 3, 4, 5, 6]
 const validSkillIds = new Set<SkillId>(ALL_SKILL_IDS)
 
@@ -35,28 +35,28 @@ const expectValidSkills = (items: ReadonlyArray<{ skillIds: SkillId[] }>) => {
 }
 
 describe('教材の数量とステージ分布', () => {
-  it('スペリング150語を指定比率で収録している', () => {
-    expect(spellingWords).toHaveLength(150)
+  it('スペリング600語を指定比率で収録している', () => {
+    expect(spellingWords).toHaveLength(600)
     expect(distribution(spellingWords)).toEqual(expectedSpelling)
   })
 
-  it('短文100問を指定比率で収録している', () => {
-    expect(shortWritingTasks).toHaveLength(100)
+  it('短文300問を指定比率で収録している', () => {
+    expect(shortWritingTasks).toHaveLength(300)
     expect(distribution(shortWritingTasks)).toEqual(expectedShortWriting)
   })
 
-  it('段落・自由英作文25題を指定比率で収録している', () => {
-    expect(extendedWritingTasks).toHaveLength(25)
+  it('段落・自由英作文60題を指定比率で収録している', () => {
+    expect(extendedWritingTasks).toHaveLength(60)
     expect(distribution(extendedWritingTasks)).toEqual(expectedExtendedWriting)
   })
 
-  it('日本語言い換え20問をStage 2〜6へ配分している', () => {
-    expect(simplificationTasks).toHaveLength(20)
+  it('日本語言い換え70問をStage 2〜6へ配分している', () => {
+    expect(simplificationTasks).toHaveLength(70)
     expect(distribution(simplificationTasks)).toEqual(expectedSimplification)
   })
 
-  it('ミニレッスン16本と診断30問を収録している', () => {
-    expect(miniLessons).toHaveLength(16)
+  it('ミニレッスン32本と診断30問を収録している', () => {
+    expect(miniLessons).toHaveLength(32)
     expect(diagnosticItems).toHaveLength(30)
     const diagnosticMinutes = diagnosticItems.reduce(
       (total, item) => total + item.estimatedSeconds,

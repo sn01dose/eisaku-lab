@@ -4,6 +4,9 @@ import { shortWritingStage3 } from './shortStage3'
 import { shortWritingStage4 } from './shortStage4'
 import { shortWritingStage5 } from './shortStage5'
 import { shortWritingStage6 } from './shortStage6'
+import { shortWritingPack02 } from './shortPack02'
+import { shortWritingPack03 } from './shortPack03'
+import { shortWritingPack04 } from './shortPack04'
 
 export {
   shortWritingStage1,
@@ -12,6 +15,9 @@ export {
   shortWritingStage4,
   shortWritingStage5,
   shortWritingStage6,
+  shortWritingPack02,
+  shortWritingPack03,
+  shortWritingPack04,
 }
 
 export const shortWritingTasks = [
@@ -21,4 +27,7 @@ export const shortWritingTasks = [
   ...shortWritingStage4,
   ...shortWritingStage5,
   ...shortWritingStage6,
+  ...shortWritingPack02,
+  ...shortWritingPack03,
+  ...shortWritingPack04,
 ]

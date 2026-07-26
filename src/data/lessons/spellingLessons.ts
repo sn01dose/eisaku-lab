@@ -44,8 +44,8 @@ export const spellingMiniLessons = defineMiniLessons([
     bodyMd:
       '短い母音のあとに一つの子音で終わる語へ -ing や -ed を付けるとき、最後の子音を重ねる場合があります。run → running、plan → planned が代表です。一方、read → reading のように母音の条件が違う語や、help → helped のように子音が連続する語では重ねません。まず語幹を確認し、次に語尾を付ける二段階で考えましょう。二重子音の過不足が起きたら、完成語だけでなく「語幹｜語尾」の境界を見てから、答えを隠して再入力します。',
     examples: [
-      { en: 'run + ing → running', ja: '最後の n を重ねます。' },
-      { en: 'help + ed → helped', ja: 'p を重ねません。' },
+      { en: 'run + ing -> running', ja: '最後の n を重ねます。' },
+      { en: 'help + ed -> helped', ja: 'p を重ねません。' },
     ],
     triggerTags: ['doubleConsonant', 'inflection'],
   },
@@ -80,8 +80,8 @@ export const spellingMiniLessons = defineMiniLessons([
     bodyMd:
       '活用した形を一語ずつ別に暗記する前に、語幹へ何が起きたかを確認します。study → studied では y を i に変えて -ed、catch → catches では音を作るため -es、plan → planned では最後の子音を重ねます。ただし不規則形はこの手順で作れないため、別の例外ルートで覚えます。誤りが起きたら「語幹を正しく書けたか」「語尾を正しく選んだか」を分けて判定し、最後は変化後の語全体を想起してください。',
     examples: [
-      { en: 'study → studied', ja: '子音字＋y を i に変えて -ed を付けます。' },
-      { en: 'catch → catches', ja: '語尾に -es を付けます。' },
+      { en: 'study -> studied', ja: '子音字＋y を i に変えて -ed を付けます。' },
+      { en: 'catch -> catches', ja: '語尾に -es を付けます。' },
     ],
     triggerTags: ['inflection', 'doubleConsonant'],
   },
