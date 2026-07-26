@@ -1,0 +1,58 @@
+@import "./secondary-pages.css";
+
+.report-page {
+  padding-top: var(--space-3);
+}
+
+.report-preview {
+  max-height: 34rem;
+  margin: 0;
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-900);
+  font-family: var(--font-ja);
+  font-size: var(--fs-body);
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.report-comment {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.report-comment textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--ink-900);
+  line-height: 1.75;
+}
+
+.report-share-action {
+  position: sticky;
+  z-index: 10;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: rgb(246 248 251 / 96%);
+  box-shadow: var(--shadow-raised);
+  backdrop-filter: blur(8px);
+}
+
+.report-share-action .privacy-note,
+.report-share-action .transfer-message {
+  margin-bottom: 0;
+}

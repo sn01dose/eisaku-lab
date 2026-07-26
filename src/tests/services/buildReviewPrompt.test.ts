@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type {
   AppState,
+  ReviewCard,
   SkillId,
   SpellingWord,
   WritingTask,
 } from '../../domain/learner/types'
-import { buildReviewPrompt } from '../../services/feedback/buildReviewPrompt'
+import { createReviewCard } from '../../domain/review/scheduler'
+import {
+  buildReviewPrompt,
+  VOCABULARY_FALLBACK_TARGET,
+} from '../../services/feedback/buildReviewPrompt'
 import { createInitialState } from '../../services/storage/migrations'
 
 const NOW = new Date('2026-07-26T12:00:00.000Z')
@@ -43,6 +48,13 @@ const paragraphTask: WritingTask = {
     needsExample: true,
     needsConclusion: true,
   },
+}
+
+const vocabularyTask: WritingTask = {
+  ...translationTask,
+  id: 'wr-vocabulary-test',
+  wordBank: ['taskdelta'],
+  modelAnswers: ['taskalpha taskbeta', 'taskgamma'],
 }
 
 function stateWithStableSkills(
@@ -92,89 +104,150 @@ function spellingWord(
   }
 }
 
+function reviewWord(
+  state: AppState,
+  word: SpellingWord,
+  overrides: Partial<ReviewCard> = {},
+): void {
+  const card = createReviewCard({
+    kind: 'spelling',
+    refId: word.id,
+    source: overrides.source,
+    now: NOW,
+  })
+  state.cards[card.id] = {
+    ...card,
+    repetitions: 3,
+    lastResult: 'correct',
+    lastReviewedAt: NOW.toISOString(),
+    ...overrides,
+  }
+}
+
+function selectVocabulary(
+  state: AppState,
+  spellingWords: readonly SpellingWord[],
+  task = vocabularyTask,
+) {
+  return buildReviewPrompt({
+    task,
+    answer: 'Answer.',
+    stage: task.stage,
+    state,
+    now: NOW,
+    spellingWords,
+    writingTasks: [task],
+  })
+}
+
 describe('buildReviewPrompt', () => {
-  it('定着技能が0件でもフォールバックで80語以上を用意する', () => {
-    const result = buildReviewPrompt({
-      task: translationTask,
-      answer: 'This experience change her idea.',
-      stage: 5,
-      state: stateWithStableSkills(),
-      now: NOW,
+  it('技能だけstableな語をskillStableに分類する', () => {
+    const word = spellingWord(1, 'spelling.suffix')
+    const result = selectVocabulary(
+      stateWithStableSkills(['spelling.suffix']),
+      [word],
+    )
+    expect(result.vocabularyBreakdown).toMatchObject({
+      wordStable: 0,
+      skillStable: 1,
     })
-
-    expect(result.vocabularyCount).toBeGreaterThanOrEqual(80)
-    expect(result.vocabularyCount).toBeLessThanOrEqual(400)
-    expect(result.vocabularyWords).toContain('study')
-    expect(result.vocabularyWords).toContain('different')
-    expect(result.prompt).toContain(`（${result.vocabularyCount}語）`)
   })
 
-  it('30件の定着候補だけで80語に届かない場合も基礎語を補う', () => {
-    const stableWords = Array.from({ length: 30 }, (_, index) =>
-      spellingWord(index, 'spelling.shortVowel'),
-    )
-    const fallbackWords = Array.from({ length: 90 }, (_, index) =>
-      spellingWord(index + 30, 'spelling.irregular', 1),
-    )
-    const result = buildReviewPrompt({
-      task: translationTask,
-      answer: 'This experience changed her.',
-      stage: 5,
-      state: stateWithStableSkills(['spelling.shortVowel']),
-      now: NOW,
-      spellingWords: [...stableWords, ...fallbackWords],
-      writingTasks: [translationTask],
-    })
-
-    expect(result.vocabularyCount).toBeGreaterThanOrEqual(80)
-    expect(result.vocabularyWords).toContain(stableWords[0].word)
-    expect(result.vocabularyWords).toContain(fallbackWords[0].word)
+  it('3回成功し直近も自力正解の語をwordStableに分類する', () => {
+    const word = spellingWord(2, 'spelling.suffix')
+    const state = stateWithStableSkills()
+    reviewWord(state, word)
+    const result = selectVocabulary(state, [word])
+    expect(result.vocabularyBreakdown.wordStable).toBe(1)
+    expect(result.vocabularyWords).toContain(word.word)
   })
 
-  it('十分に定着語がある場合は基礎語フォールバックを追加しない', () => {
-    const stableWords = Array.from({ length: 100 }, (_, index) =>
-      spellingWord(index, 'spelling.shortVowel'),
-    )
-    const fallbackOnly = spellingWord(200, 'spelling.irregular', 1)
-    const result = buildReviewPrompt({
-      task: translationTask,
-      answer: 'This experience changed her.',
-      stage: 5,
-      state: stateWithStableSkills(['spelling.shortVowel']),
-      now: NOW,
-      spellingWords: [...stableWords, fallbackOnly],
-      writingTasks: [translationTask],
-    })
-
-    expect(result.vocabularyCount).toBeGreaterThanOrEqual(80)
-    expect(result.vocabularyWords).not.toContain(fallbackOnly.word)
+  it('3回でも直近がヒント付きならwordStableにしない', () => {
+    const word = spellingWord(3, 'spelling.suffix')
+    const state = stateWithStableSkills()
+    reviewWord(state, word, { lastResult: 'hinted' })
+    const result = selectVocabulary(state, [word])
+    expect(result.vocabularyBreakdown.wordStable).toBe(0)
+    expect(result.vocabularyWords).not.toContain(word.word)
   })
 
-  it('語彙を400語に制限し、定着日の新しい技能に紐づく語を優先する', () => {
-    const newerWords = Array.from({ length: 250 }, (_, index) =>
-      spellingWord(index, 'spelling.shortVowel'),
-    )
-    const olderWords = Array.from({ length: 200 }, (_, index) =>
-      spellingWord(index + 250, 'spelling.longVowel'),
-    )
-    const state = stateWithStableSkills([
-      'spelling.shortVowel',
-      'spelling.longVowel',
-    ])
+  it('成功が2回の語はwordStableにしない', () => {
+    const word = spellingWord(4, 'spelling.suffix')
+    const state = stateWithStableSkills()
+    reviewWord(state, word, { repetitions: 2 })
+    const result = selectVocabulary(state, [word])
+    expect(result.vocabularyBreakdown.wordStable).toBe(0)
+    expect(result.vocabularyWords).not.toContain(word.word)
+  })
 
-    const result = buildReviewPrompt({
-      task: translationTask,
-      answer: 'This experience changed her.',
-      stage: 5,
-      state,
-      now: NOW,
-      spellingWords: [...newerWords, ...olderWords],
-      writingTasks: [translationTask],
-    })
+  it('英作文由来のカスタム語も同じ条件でwordStableにする', () => {
+    const custom = {
+      ...spellingWord(5, 'spelling.suffix'),
+      id: 'custom-spelling:customstable',
+      word: 'customstable',
+      acceptedAnswers: ['customstable'],
+    }
+    const state = stateWithStableSkills()
+    state.customSpellingWords[custom.id] = custom
+    reviewWord(state, custom, { source: 'writingMistake' })
+    const result = selectVocabulary(state, [])
+    expect(result.vocabularyBreakdown.wordStable).toBe(1)
+    expect(result.vocabularyWords).toContain('customstable')
+  })
 
+  it('400語を超えても当該課題の語を必ず残す', () => {
+    const words = Array.from({ length: 450 }, (_, index) =>
+      spellingWord(index + 10, 'spelling.shortVowel'),
+    )
+    const state = stateWithStableSkills()
+    words.forEach((word) => reviewWord(state, word))
+    const result = selectVocabulary(state, words)
     expect(result.vocabularyCount).toBe(400)
-    expect(result.vocabularyWords).toContain(newerWords.at(-1)?.word)
-    expect(result.vocabularyWords).not.toContain(olderWords.at(-1)?.word)
+    expect(result.vocabularyBreakdown.task).toBe(4)
+    expect(result.vocabularyWords).toEqual(
+      expect.arrayContaining(['taskalpha', 'taskbeta', 'taskgamma', 'taskdelta']),
+    )
+  })
+
+  it('補完時の合計を220語で止める', () => {
+    const words = Array.from({ length: 300 }, (_, index) =>
+      spellingWord(index, 'spelling.shortVowel', 1),
+    )
+    const result = selectVocabulary(stateWithStableSkills(), words)
+    expect(result.vocabularyCount).toBe(220)
+    expect(
+      result.vocabularyBreakdown.fallbackBasic +
+        result.vocabularyBreakdown.fallbackModel,
+    ).toBe(216)
+  })
+
+  it('wordStableが80語以上でも合計220語まで補完する', () => {
+    const stableWords = Array.from({ length: 90 }, (_, index) =>
+      spellingWord(index, 'spelling.shortVowel'),
+    )
+    const fallbackWords = Array.from({ length: 150 }, (_, index) =>
+      spellingWord(index + 100, 'spelling.shortVowel', 1),
+    )
+    const state = stateWithStableSkills()
+    stableWords.forEach((word) => reviewWord(state, word))
+    const result = selectVocabulary(state, [...stableWords, ...fallbackWords])
+    expect(result.vocabularyCount).toBe(VOCABULARY_FALLBACK_TARGET)
+    expect(result.vocabularyBreakdown.wordStable).toBe(90)
+    expect(result.vocabularyBreakdown.fallbackBasic).toBe(126)
+    expect(result.vocabularyBreakdown.fallbackModel).toBe(0)
+  })
+
+  it('内訳の合計が語数と一致する', () => {
+    const result = selectVocabulary(stateWithStableSkills(), [])
+    expect(Object.values(result.vocabularyBreakdown).reduce((a, b) => a + b, 0))
+      .toBe(result.vocabularyWords.length)
+  })
+
+  it('表示用の語彙をアルファベット順に返す', () => {
+    const result = selectVocabulary(stateWithStableSkills(), [
+      spellingWord(8, 'spelling.shortVowel', 1),
+      spellingWord(1, 'spelling.shortVowel', 1),
+    ])
     expect(result.vocabularyWords).toEqual(
       [...result.vocabularyWords].sort((a, b) => a.localeCompare(b)),
     )

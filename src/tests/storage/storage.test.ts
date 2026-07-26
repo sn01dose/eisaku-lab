@@ -80,9 +80,23 @@ describe('migrateState', () => {
     expect(migrated).toMatchObject({
       schemaVersion: CURRENT_SCHEMA_VERSION,
       plan: null,
+      weeklySnapshots: [],
       customSpellingWords: {},
     })
     expect(migrated.attempts).toHaveLength(1)
+  })
+
+  it('version 2へ週次スナップショットの初期値を補う', () => {
+    const migrated = migrateState(
+      {
+        schemaVersion: 2,
+        profile: { nickname: 'ハンギョドン', dailyMinutes: 30 },
+      },
+      now,
+    )
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
+    expect(migrated.weeklySnapshots).toEqual([])
   })
 
   it('未来versionのデータを拒否する', () => {
@@ -109,6 +123,43 @@ describe('AppStateRepository', () => {
     const saved = repository.save(state)
     expect(saved.attempts).toHaveLength(1000)
     expect(saved.attempts[0].id).toBe('attempt-2')
+  })
+
+  it('週が切り替わった保存時に前週のスナップショットを生成する', () => {
+    const repository = new AppStateRepository(
+      new MemoryStorage(),
+      'eisaku-lab:test-weekly',
+      () => new Date('2026-07-20T12:00:00.000Z'),
+    )
+    const state = createInitialState(
+      new Date('2026-07-13T12:00:00.000Z'),
+    )
+    state.profile = {
+      nickname: 'ハンギョドン',
+      dailyMinutes: 30,
+      goal: 'selective',
+      useSpeech: false,
+      targetDate: null,
+      currentStage: 3,
+      recommendedStage: 3,
+      supportLevel: 3,
+      createdAt: '2026-07-13T12:00:00.000Z',
+    }
+    state.attempts = [
+      {
+        ...attempt(1),
+        at: '2026-07-14T12:00:00.000Z',
+      },
+    ]
+
+    const saved = repository.save(state)
+
+    expect(saved.weeklySnapshots).toHaveLength(1)
+    expect(saved.weeklySnapshots[0]).toMatchObject({
+      weekStart: '2026-07-13',
+      studiedDays: 1,
+      spellingAttempts: 1,
+    })
   })
 
   it('壊れた保存値では初期状態へ安全に戻る', () => {

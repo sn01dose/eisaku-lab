@@ -8,6 +8,7 @@ import type {
   StageId,
   SupportLevel,
 } from '../domain/learner/types'
+import { TeacherReportPanel } from '../features/report/TeacherReportPanel'
 import {
   exportAttemptsToCsv,
   exportProgressToCsv,
@@ -138,18 +139,12 @@ export function TeacherPage(): React.JSX.Element {
         description="本人向け画面では省いている履歴と設定を確認できます。"
       />
 
+      <TeacherReportPanel />
+
       {!profile ? (
         <EmptyState
-          title="学習者の設定がありません"
-          message="初回設定を完了すると、技能や解答履歴をここで確認できます。"
-          action={
-            <a
-              className="button button--primary button--full"
-              href="#/onboarding"
-            >
-              初回設定へ進む
-            </a>
-          }
+          title="この端末に学習者本体の設定はありません"
+          message="共有レポートの取り込みは、このまま上の欄から利用できます。"
         />
       ) : (
         <div className="section-stack">

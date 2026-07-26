@@ -393,6 +393,7 @@ export interface AppState {
   schemaVersion: number
   profile: LearnerProfile | null
   plan: import('../plan/types').StudyPlan | null
+  weeklySnapshots: import('../report/types').WeeklySnapshot[]
   customSpellingWords: Record<string, SpellingWord>
   cards: Record<string, ReviewCard>
   attempts: Attempt[]

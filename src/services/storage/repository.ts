@@ -1,5 +1,7 @@
 import type { AppState } from '../../domain/learner/types'
+import { writingTasks } from '../../data/writing'
 import { refreshStudyPlan } from '../../domain/plan/refreshStudyPlan'
+import { refreshWeeklySnapshots } from '../../domain/report/weeklySnapshot'
 import {
   createInitialState,
   CURRENT_SCHEMA_VERSION,
@@ -26,34 +28,54 @@ export class AppStateRepository {
   private memoryState: AppState | null = null
   private readonly storage: StorageLike | null
   private readonly key: string
+  private readonly now: () => Date
 
   constructor(
     storage: StorageLike | null = browserStorage(),
     key = STORAGE_KEY,
+    now: () => Date = () => new Date(),
   ) {
     this.storage = storage
     this.key = key
+    this.now = now
+  }
+
+  private refreshRuntimeState(state: AppState): AppState {
+    const now = this.now()
+    return refreshStudyPlan(
+      refreshWeeklySnapshots(state, now, writingTasks),
+      now,
+    )
   }
 
   load(): AppState {
     if (!this.storage) {
-      return refreshStudyPlan(this.memoryState ?? createInitialState())
+      return this.refreshRuntimeState(
+        this.memoryState ?? createInitialState(this.now()),
+      )
     }
     const serialized = this.storage.getItem(this.key)
-    if (!serialized) return createInitialState()
+    if (!serialized) return createInitialState(this.now())
     try {
-      return refreshStudyPlan(migrateState(JSON.parse(serialized)))
+      return this.refreshRuntimeState(
+        migrateState(JSON.parse(serialized), this.now()),
+      )
     } catch {
-      return createInitialState()
+      return createInitialState(this.now())
     }
   }
 
   save(state: AppState): AppState {
-    const normalized = refreshStudyPlan(migrateState({
-      ...state,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-      attempts: state.attempts.slice(-1000),
-    }))
+    const normalized = this.refreshRuntimeState(
+      migrateState(
+        {
+          ...state,
+          schemaVersion: CURRENT_SCHEMA_VERSION,
+          attempts: state.attempts.slice(-1000),
+        },
+        this.now(),
+      ),
+    )
     if (this.storage) {
       this.storage.setItem(this.key, JSON.stringify(normalized))
     } else {

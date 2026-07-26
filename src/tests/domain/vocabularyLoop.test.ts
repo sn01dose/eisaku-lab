@@ -20,7 +20,7 @@ function stateWithSpellingAttempt(at: string): AppState {
     skillIds: word.skillIds,
   }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     profile: {
       nickname: 'test',
       dailyMinutes: 30,
@@ -33,6 +33,7 @@ function stateWithSpellingAttempt(at: string): AppState {
       createdAt: '2026-01-01T00:00:00.000Z',
     },
     plan: null,
+    weeklySnapshots: [],
     customSpellingWords: {},
     cards: {},
     attempts: [attempt],

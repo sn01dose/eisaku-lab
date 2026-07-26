@@ -5,6 +5,7 @@ export type ReviewQuality = 1 | 2 | 3 | 4 | 5
 export interface ReviewOutcome {
   correct: boolean
   usedHint: boolean
+  hintCount?: number
   retried: boolean
   responseTimeMs: number
   targetTimeMs: number
@@ -30,7 +31,7 @@ function dueDate(reviewedAt: Date, interval: number): string {
 export function qualityFromOutcome(outcome: ReviewOutcome): ReviewQuality {
   if (!outcome.correct) return 1
   if (outcome.retried) return 2
-  if (outcome.usedHint) return 3
+  if (outcome.usedHint || (outcome.hintCount ?? 0) > 0) return 3
   return outcome.responseTimeMs <= outcome.targetTimeMs ? 5 : 4
 }
 
@@ -118,8 +119,11 @@ export function applyReviewOutcome(
   outcome: ReviewOutcome,
   reviewedAt = new Date(),
 ): ReviewCard {
+  const hintCount =
+    outcome.hintCount ??
+    (outcome.usedHint ? Math.max(1, card.hintCount) : 0)
   return scheduleReview(card, qualityFromOutcome(outcome), reviewedAt, {
-    hintCount: outcome.usedHint ? Math.max(1, card.hintCount) : 0,
+    hintCount,
     responseTimeMs: outcome.responseTimeMs,
   })
 }

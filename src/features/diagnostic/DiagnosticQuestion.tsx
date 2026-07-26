@@ -1,8 +1,9 @@
-import type { FocusEvent } from 'react'
+import { useState, type FocusEvent } from 'react'
 import { Button } from '../../components'
 import { ENGLISH_INPUT_PROPS } from '../../components/forms/inputPolicy'
 import type { DiagnosticItem } from '../../domain/learner/types'
 import { useSpeech } from '../../services/speech'
+import { shuffleWithSeed } from '../../utils/shuffle'
 import { DIAGNOSTIC_SECTION_LABELS } from './labels'
 
 interface DiagnosticQuestionProps {
@@ -30,6 +31,41 @@ function textValue(answer: string | string[]): string {
 
 function selectedValues(answer: string | string[]): string[] {
   return Array.isArray(answer) ? answer : []
+}
+
+function SpellChoiceQuestion({
+  answer,
+  item,
+  onChange,
+}: {
+  answer: string | string[]
+  item: Extract<DiagnosticItem, { section: 'spellChoice' }>
+  onChange: (answer: string) => void
+}): React.JSX.Element {
+  const [options] = useState(() =>
+    shuffleWithSeed(item.payload.options, item.id),
+  )
+  return (
+    <fieldset className="diagnostic-question">
+      <legend>{item.payload.promptJa}</legend>
+      <p className="diagnostic-question__instruction">
+        {DIAGNOSTIC_SECTION_LABELS.spellChoice}
+      </p>
+      <div className="diagnostic-choice-list">
+        {options.map((option) => (
+          <label className="diagnostic-choice en-spelling" key={option}>
+            <input
+              checked={textValue(answer) === option}
+              name={item.id}
+              onChange={() => onChange(option)}
+              type="radio"
+            />
+            <span>{option}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
 }
 
 function TokenBuilder({
@@ -104,23 +140,12 @@ export function DiagnosticQuestion({
 
   if (item.section === 'spellChoice') {
     return (
-      <fieldset className="diagnostic-question">
-        <legend>{item.payload.promptJa}</legend>
-        <p className="diagnostic-question__instruction">{sectionLabel}</p>
-        <div className="diagnostic-choice-list">
-          {item.payload.options.map((option) => (
-            <label className="diagnostic-choice en-spelling" key={option}>
-              <input
-                checked={textValue(answer) === option}
-                name={item.id}
-                onChange={() => onChange(option)}
-                type="radio"
-              />
-              <span>{option}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <SpellChoiceQuestion
+        answer={answer}
+        item={item}
+        key={item.id}
+        onChange={onChange}
+      />
     )
   }
 

@@ -148,6 +148,19 @@
   text-align: center;
 }
 
+.weekend-report-link {
+  margin: calc(var(--space-2) * -1) 0 var(--space-4);
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+  text-align: center;
+}
+
+.weekend-report-link a {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+}
+
 .trainer-toolbar {
   min-height: 3rem;
 }

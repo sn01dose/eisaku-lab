@@ -1,0 +1,180 @@
+@import './secondary-pages.css';
+
+.teacher-report-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.teacher-report-description {
+  margin: 0 0 var(--space-3);
+  color: var(--ink-600);
+}
+
+.teacher-report-panel textarea {
+  width: 100%;
+  min-height: 11rem;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--ink-900);
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.teacher-report-line-chart {
+  display: block;
+  width: 100%;
+  min-height: 7.5rem;
+  overflow: visible;
+}
+
+.teacher-report-line-chart line {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.teacher-report-line-chart polyline {
+  fill: none;
+  stroke: var(--ai-600);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.teacher-report-line-chart circle {
+  fill: var(--card);
+  stroke: var(--ai-600);
+  stroke-width: 2;
+}
+
+.teacher-report-chart-range,
+.teacher-report-empty {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+}
+
+.teacher-report-chart-range {
+  text-align: center;
+}
+
+.teacher-report-error-trend {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.teacher-report-error-trend section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.teacher-report-error-trend h3,
+.teacher-report-error-trend p {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+}
+
+.teacher-report-error-bar {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(6.5rem, 0.8fr) minmax(4rem, 1fr) 2rem;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--ink-600);
+  font-size: var(--fs-caption);
+}
+
+.teacher-report-error-bar__track {
+  display: block;
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--rule);
+}
+
+.teacher-report-error-bar__track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--kohaku-600);
+}
+
+.teacher-report-error-bar strong {
+  color: var(--ink-900);
+  font-family: var(--font-en-cell);
+  text-align: right;
+}
+
+.teacher-report-timeline,
+.teacher-report-import-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teacher-report-timeline li {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) repeat(2, auto);
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-600);
+}
+
+.teacher-report-timeline li:last-child,
+.teacher-report-import-list li:last-child {
+  border-bottom: 0;
+}
+
+.teacher-report-timeline time {
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.teacher-report-import-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.teacher-report-import-list li > span:first-child {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.teacher-report-import-list small {
+  color: var(--ink-600);
+}
+
+.teacher-report-delete-confirm {
+  display: flex;
+  gap: var(--space-2);
+}
+
+@media (max-width: 22.5rem) {
+  .teacher-report-error-bar {
+    grid-template-columns: minmax(5.5rem, 0.9fr) minmax(3rem, 1fr) 1.75rem;
+    gap: var(--space-1);
+  }
+
+  .teacher-report-timeline li {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-report-import-list li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .teacher-report-delete-confirm > *,
+  .teacher-report-import-list li > button {
+    flex: 1;
+  }
+}

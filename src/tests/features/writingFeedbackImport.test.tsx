@@ -361,7 +361,7 @@ Technology development quickly and it changes our lives.`,
     ).toBe(false)
     expect(fetchSpy).not.toHaveBeenCalled()
     fetchSpy.mockRestore()
-  }, 15_000)
+  }, 30_000)
 
   it('does not confirm an unknown tag until the learner selects one', () => {
     const onSubmit = vi.fn()

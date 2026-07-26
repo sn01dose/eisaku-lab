@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyReviewOutcome,
   createReviewCard,
   qualityFromOutcome,
   scheduleReview,
@@ -70,4 +71,30 @@ describe('scheduleReview', () => {
     expect(scheduleReview({ ...fresh, easeFactor: 1.3 }, 1).easeFactor).toBe(1.3)
     expect(scheduleReview({ ...fresh, easeFactor: 2.8 }, 5).easeFactor).toBe(2.8)
   })
+
+  it.each([1, 2, 3])(
+    'ヒント段階 %i を記録し、正解でも品質値を3に制限する',
+    (hintCount) => {
+      const result = applyReviewOutcome(
+        fresh,
+        {
+          correct: true,
+          usedHint: true,
+          hintCount,
+          retried: false,
+          responseTimeMs: 500,
+          targetTimeMs: 5000,
+        },
+        reviewedAt,
+      )
+
+      expect(result).toMatchObject({
+        repetitions: 1,
+        interval: 1,
+        lastResult: 'hinted',
+        hintCount,
+      })
+      expect(result.easeFactor).toBeCloseTo(2.36)
+    },
+  )
 })

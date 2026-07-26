@@ -17,8 +17,27 @@ import {
 } from './reviewPromptTemplate'
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const VOCABULARY_FALLBACK_THRESHOLD = 80
 const VOCABULARY_LIMIT = 400
+export const VOCABULARY_FALLBACK_TARGET = 220
+
+export type Tier = 4 | 3 | 2 | 1 | 0
+
+export const TIER = {
+  task: 4,
+  wordStable: 3,
+  skillStable: 2,
+  fallbackBasic: 1,
+  fallbackModel: 0,
+} as const satisfies Record<string, Tier>
+
+export type VocabularyTier = keyof typeof TIER
+export type VocabularyBreakdown = Record<VocabularyTier, number>
+
+export interface VocabularySelection {
+  words: string[]
+  breakdown: VocabularyBreakdown
+  total: number
+}
 
 const TRANSLATION_TYPES = new Set<WritingTaskType>([
   'translateWithBank',
@@ -80,7 +99,7 @@ const ERROR_TAG_LABELS: Readonly<
 
 type PromptState = Pick<
   AppState,
-  'attempts' | 'customSpellingWords' | 'mastery'
+  'attempts' | 'cards' | 'customSpellingWords' | 'mastery'
 >
 
 export interface BuildReviewPromptInput {
@@ -98,12 +117,15 @@ export interface ReviewPromptResult {
   prompt: string
   vocabularyCount: number
   vocabularyWords: string[]
+  vocabularyBreakdown: VocabularyBreakdown
   includedVocabulary: boolean
 }
 
 interface RankedWord {
   word: string
-  rank: number
+  tier: Tier
+  tierName: VocabularyTier
+  recency: number
 }
 
 function tokenizeEnglish(input: string): string[] {
@@ -131,66 +153,135 @@ function stableSkillUpdatedAt(
   return timestamps.length > 0 ? Math.max(...timestamps) : null
 }
 
-function addUniqueRanked(
-  target: RankedWord[],
-  seen: Set<string>,
+function wordStableRecency(
+  word: SpellingWord,
+  state: PromptState,
+): number | null {
+  const card = state.cards[`card:${word.id}`]
+  if (
+    !card ||
+    card.kind !== 'spelling' ||
+    card.repetitions < 3 ||
+    card.lastResult !== 'correct'
+  ) {
+    return null
+  }
+  if (!card.lastReviewedAt) return 0
+  const timestamp = Date.parse(card.lastReviewedAt)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function compareRankedWords(left: RankedWord, right: RankedWord): number {
+  return (
+    right.tier - left.tier ||
+    right.recency - left.recency ||
+    left.word.localeCompare(right.word)
+  )
+}
+
+function rankedWords(
   words: readonly string[],
-  rank: number,
+  tierName: VocabularyTier,
+  recency = 0,
+): RankedWord[] {
+  return words.flatMap((rawWord) =>
+    tokenizeEnglish(rawWord).map((word) => ({
+      word,
+      tier: TIER[tierName],
+      tierName,
+      recency,
+    })),
+  )
+}
+
+function addBestCandidates(
+  selected: Map<string, RankedWord>,
+  candidates: readonly RankedWord[],
 ): void {
-  words.forEach((rawWord) => {
-    tokenizeEnglish(rawWord).forEach((word) => {
-      if (!seen.has(word)) {
-        seen.add(word)
-        target.push({ word, rank })
-      }
-    })
+  candidates.forEach((candidate) => {
+    const current = selected.get(candidate.word)
+    if (!current || compareRankedWords(candidate, current) < 0) {
+      selected.set(candidate.word, candidate)
+    }
   })
 }
 
-function buildVocabulary(
-  input: BuildReviewPromptInput,
-): string[] {
+function addFallbackUntil(
+  selected: Map<string, RankedWord>,
+  candidates: readonly RankedWord[],
+): void {
+  for (const candidate of [...candidates].sort(compareRankedWords)) {
+    if (selected.size >= VOCABULARY_FALLBACK_TARGET) return
+    if (!selected.has(candidate.word)) selected.set(candidate.word, candidate)
+  }
+}
+
+function buildVocabulary(input: BuildReviewPromptInput): VocabularySelection {
+  const baseSpellingCorpus =
+    input.spellingWords ?? curriculumSpellingWords
   const spellingCorpus = [
-    ...(input.spellingWords ?? curriculumSpellingWords),
+    ...baseSpellingCorpus,
     ...Object.values(input.state.customSpellingWords),
   ]
   const writingCorpus = input.writingTasks ?? curriculumWritingTasks
-  const selected: RankedWord[] = []
-  const seen = new Set<string>()
+  const selected = new Map<string, RankedWord>()
 
-  addUniqueRanked(selected, seen, taskWords(input.task), Number.MAX_SAFE_INTEGER)
+  addBestCandidates(selected, rankedWords(taskWords(input.task), 'task'))
+  spellingCorpus.forEach((word) => {
+    const recency = wordStableRecency(word, input.state)
+    if (recency !== null) {
+      addBestCandidates(
+        selected,
+        rankedWords([word.word], 'wordStable', recency),
+      )
+    }
+  })
+  spellingCorpus.forEach((word) => {
+    const recency = stableSkillUpdatedAt(word, input.state)
+    if (recency !== null) {
+      addBestCandidates(
+        selected,
+        rankedWords([word.word], 'skillStable', recency),
+      )
+    }
+  })
 
-  spellingCorpus
-    .flatMap((word) => {
-      const rank = stableSkillUpdatedAt(word, input.state)
-      return rank === null ? [] : [{ word: word.word, rank }]
-    })
-    .sort((a, b) => b.rank - a.rank || a.word.localeCompare(b.word))
-    .forEach(({ word, rank }) => addUniqueRanked(selected, seen, [word], rank))
-
-  if (selected.length < VOCABULARY_FALLBACK_THRESHOLD) {
-    addUniqueRanked(
-      selected,
-      seen,
-      spellingCorpus
+  addFallbackUntil(
+    selected,
+    rankedWords(
+      baseSpellingCorpus
         .filter(({ stage }) => stage <= 2)
         .map(({ word }) => word),
-      -1,
-    )
-    addUniqueRanked(
-      selected,
-      seen,
+      'fallbackBasic',
+    ),
+  )
+  addFallbackUntil(
+    selected,
+    rankedWords(
       writingCorpus
         .filter(({ stage }) => stage <= input.stage)
         .flatMap(({ modelAnswers }) => modelAnswers.flatMap(tokenizeEnglish)),
-      -2,
-    )
-  }
+      'fallbackModel',
+    ),
+  )
 
-  return selected
+  const ranked = [...selected.values()]
+    .sort(compareRankedWords)
     .slice(0, VOCABULARY_LIMIT)
+  const breakdown: VocabularyBreakdown = {
+    task: 0,
+    wordStable: 0,
+    skillStable: 0,
+    fallbackBasic: 0,
+    fallbackModel: 0,
+  }
+  ranked.forEach(({ tierName }) => {
+    breakdown[tierName] += 1
+  })
+  const words = ranked
     .map(({ word }) => word)
     .sort((a, b) => a.localeCompare(b))
+  return { words, breakdown, total: words.length }
 }
 
 function recentErrorTags(state: PromptState, now: Date): string {
@@ -250,7 +341,7 @@ export function buildReviewPrompt(
   input: BuildReviewPromptInput,
 ): ReviewPromptResult {
   const stage = STAGES.find(({ id }) => id === input.stage) ?? STAGES[0]
-  const vocabularyWords = buildVocabulary(input)
+  const vocabulary = buildVocabulary(input)
   const includeVocabulary = input.includeVocabulary ?? true
   const simplifiedJapaneseBlock = input.task.simplifiedJapanese?.length
     ? `（英訳しやすく言い換えた日本語）\n${input.task.simplifiedJapanese.join('\n')}`
@@ -271,11 +362,12 @@ export function buildReviewPrompt(
       modelAnswerSafe: input.task.modelAnswers[0] ?? '',
       criteriaBlock,
       stableWords: includeVocabulary
-        ? `（${vocabularyWords.length}語）\n${vocabularyWords.join(', ')}`
+        ? `（${vocabulary.total}語）\n${vocabulary.words.join(', ')}`
         : '（語彙リストは含めていません）',
     }),
-    vocabularyCount: vocabularyWords.length,
-    vocabularyWords,
+    vocabularyCount: vocabulary.total,
+    vocabularyWords: vocabulary.words,
+    vocabularyBreakdown: vocabulary.breakdown,
     includedVocabulary: includeVocabulary,
   }
 }
