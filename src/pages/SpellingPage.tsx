@@ -11,8 +11,11 @@ export function SpellingPage(): React.JSX.Element {
     state.profile?.currentStage ?? 1,
   )
   const items = useMemo(
-    () => spellingWords.filter((item) => item.stage === stage),
-    [stage],
+    () =>
+      [...spellingWords, ...Object.values(state.customSpellingWords)].filter(
+        (item) => item.stage === stage,
+      ),
+    [stage, state.customSpellingWords],
   )
 
   return (

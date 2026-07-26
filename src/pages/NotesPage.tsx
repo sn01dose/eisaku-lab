@@ -67,6 +67,15 @@ function formatNoteDate(value: string): string {
 
 export function NotesPage(): React.JSX.Element {
   const { state, updateState } = useAppState()
+  const spellingById = useMemo(
+    () =>
+      new Map(
+        [...spellingWords, ...Object.values(state.customSpellingWords)].map(
+          (word) => [word.id, word],
+        ),
+      ),
+    [state.customSpellingWords],
+  )
   const [filter, setFilter] = useState<NoteFilter>('active')
   const visibleNotes = useMemo(
     () =>
@@ -156,7 +165,7 @@ export function NotesPage(): React.JSX.Element {
           {visibleNotes.map((note) => {
             const word =
               note.kind === 'spelling'
-                ? spellingWords.find((item) => item.id === note.refId)
+                ? spellingById.get(note.refId)
                 : undefined
 
             return (

@@ -7,8 +7,12 @@ import { shortWritingStage6 } from './shortStage6'
 import { shortWritingPack02 } from './shortPack02'
 import { shortWritingPack03 } from './shortPack03'
 import { shortWritingPack04 } from './shortPack04'
+import { advancedTranslationStage5 } from './advancedTranslationStage5'
+import { advancedTranslationStage6 } from './advancedTranslationStage6'
 
 export {
+  advancedTranslationStage5,
+  advancedTranslationStage6,
   shortWritingStage1,
   shortWritingStage2,
   shortWritingStage3,
@@ -30,4 +34,6 @@ export const shortWritingTasks = [
   ...shortWritingPack02,
   ...shortWritingPack03,
   ...shortWritingPack04,
+  ...advancedTranslationStage5,
+  ...advancedTranslationStage6,
 ]

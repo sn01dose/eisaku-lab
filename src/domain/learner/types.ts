@@ -270,6 +270,8 @@ export interface Attempt {
   correct: boolean
   hintLevelUsed: number
   responseTimeMs: number
+  withinLimitWordCount?: number
+  totalWordCount?: number
   errorTags: Array<SpellingErrorTag | WritingErrorTag>
   skillIds: SkillId[]
 }
@@ -390,6 +392,8 @@ export interface SessionLog {
 export interface AppState {
   schemaVersion: number
   profile: LearnerProfile | null
+  plan: import('../plan/types').StudyPlan | null
+  customSpellingWords: Record<string, SpellingWord>
   cards: Record<string, ReviewCard>
   attempts: Attempt[]
   mastery: Record<SkillId, SkillMastery>

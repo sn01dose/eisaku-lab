@@ -1,4 +1,9 @@
-import { makeShortWritingTasks, type ShortWritingSeed } from '../factories'
+import {
+  makeShortWritingTasks,
+  withRequiredSimplifiedJapanese,
+  type ShortWritingSeed,
+} from '../factories'
+import { legacyAdvancedSimplifications } from './legacyAdvancedSimplifications'
 
 const seeds = [
   ['効率性が重視される社会において、時間をかけて考えることの価値はむしろ高まっている。', ['In a society that values efficiency, taking time to think has become even more valuable.', 'As society places greater emphasis on efficiency, the value of careful reflection has actually increased.'], ['writing.translation', 'writing.paraphrase'], ['literalTranslation', 'wordOrder'], 'translatePlain', '社会課題', '逆説的な「むしろ」は actually や even more で無理なく表せます。'],
@@ -13,4 +18,7 @@ const seeds = [
   ['限られた資料から結論を出すときは、わかっていることと推測していることを区別しなければならない。', ['When drawing a conclusion from limited evidence, we must distinguish what we know from what we are assuming.', 'With limited sources, we need to separate established facts from our own inferences.'], ['writing.summary', 'writing.argument'], ['literalTranslation', 'wordChoice'], 'translatePlain', '論証', '事実と推測を distinguish A from B または separate A from B で分けます。'],
 ] satisfies readonly ShortWritingSeed[]
 
-export const shortWritingStage6 = makeShortWritingTasks(6, 91, seeds)
+export const shortWritingStage6 = withRequiredSimplifiedJapanese(
+  makeShortWritingTasks(6, 91, seeds),
+  legacyAdvancedSimplifications,
+)

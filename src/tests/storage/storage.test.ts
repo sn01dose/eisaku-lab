@@ -53,7 +53,7 @@ function attempt(index: number): Attempt {
 }
 
 describe('migrateState', () => {
-  it('version なしの保存データをversion 1へ移行する', () => {
+  it('version なしの保存データを現行versionへ移行する', () => {
     const migrated = migrateState(
       {
         profile: { nickname: '凪', dailyMinutes: 30 },
@@ -65,6 +65,24 @@ describe('migrateState', () => {
     expect(migrated.profile?.nickname).toBe('凪')
     expect(migrated.attempts).toHaveLength(1)
     expect(Object.keys(migrated.mastery).length).toBeGreaterThan(20)
+  })
+
+  it('version 1へ計画とカスタム語彙の初期値を補って移行する', () => {
+    const migrated = migrateState(
+      {
+        schemaVersion: 1,
+        profile: { nickname: 'ハンギョドン', dailyMinutes: 30 },
+        attempts: [attempt(1)],
+      },
+      now,
+    )
+
+    expect(migrated).toMatchObject({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      plan: null,
+      customSpellingWords: {},
+    })
+    expect(migrated.attempts).toHaveLength(1)
   })
 
   it('未来versionのデータを拒否する', () => {

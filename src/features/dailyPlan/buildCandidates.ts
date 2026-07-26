@@ -1,60 +1,26 @@
 import { simplificationTasks } from '../../data/simplification'
-import { writingTaskIdsForWord } from '../../data/index/wordToTasks'
 import { spellingWords } from '../../data/spelling'
 import { writingTasks } from '../../data/writing'
 import type {
   AppState,
-  SessionItem,
-  SkillId,
-  SpellingWord,
-  WritingTask,
+  WritingErrorTag,
 } from '../../domain/learner/types'
 import type { DailyPlanCandidate } from '../../domain/dailyPlan/generateDailyPlan'
 import {
   calculateResponseTimeAverages,
-  TARGET_RESPONSE_SECONDS,
   type ResponseTimeAverages,
   type ResponseTimeSample,
   type TimedLearningActivity,
 } from '../../domain/session/timing'
+import { candidate, writingSessionActivity } from './candidate'
+import {
+  buildFinalPhaseWeakCandidates,
+  prioritizeFinalPhaseReview,
+} from './finalPhaseCandidates'
+import { buildTriggeredMiniLessonCandidate } from './miniLessonCandidate'
+import { writingReuseCandidates } from './writingReuseCandidates'
 
-const SHORT_WRITING_TYPES = new Set<WritingTask['type']>([
-  'outline',
-  'paragraph',
-  'timed',
-  'summary',
-])
-
-const SPELLING_REUSE_WINDOW_MS = 48 * 60 * 60 * 1000
-
-export function writingSessionActivity(
-  type: WritingTask['type'],
-): 'basicWriting' | 'shortWriting' {
-  return SHORT_WRITING_TYPES.has(type) ? 'shortWriting' : 'basicWriting'
-}
-
-function candidate(
-  kind: SessionItem['kind'],
-  activity: TimedLearningActivity,
-  item: {
-    id: string
-    stage: DailyPlanCandidate['stage']
-    skillIds?: SkillId[]
-    requiredSkills?: SkillId[]
-  },
-  priority = 0,
-): DailyPlanCandidate {
-  return {
-    id: `plan:${kind}:${item.id}`,
-    kind,
-    activity,
-    refId: item.id,
-    stage: item.stage,
-    skillIds: item.skillIds ?? item.requiredSkills ?? [],
-    priority,
-    estimatedMinutes: TARGET_RESPONSE_SECONDS[activity] / 60,
-  }
-}
+export { writingSessionActivity } from './candidate'
 
 export function buildResponseTimeSamples(state: AppState): ResponseTimeSample[] {
   const writingById = new Map(writingTasks.map((item) => [item.id, item]))
@@ -90,60 +56,6 @@ export function buildResponseTimeAverages(
   return calculateResponseTimeAverages(buildResponseTimeSamples(state))
 }
 
-function writingReuseCandidates(
-  state: AppState,
-  now: Date,
-  stage: DailyPlanCandidate['stage'],
-  spellingById: ReadonlyMap<string, SpellingWord>,
-  writingById: ReadonlyMap<string, WritingTask>,
-): DailyPlanCandidate[] {
-  const words = state.attempts
-    .filter((attempt) => {
-      const ageMs = now.getTime() - new Date(attempt.at).getTime()
-      return (
-        attempt.kind === 'spelling' &&
-        !attempt.correct &&
-        ageMs >= 0 &&
-        ageMs <= SPELLING_REUSE_WINDOW_MS
-      )
-    })
-    .sort(
-      (left, right) =>
-        new Date(right.at).getTime() - new Date(left.at).getTime(),
-    )
-    .map((attempt) => spellingById.get(attempt.refId))
-    .filter((word): word is SpellingWord => Boolean(word))
-
-  const result = new Map<string, DailyPlanCandidate>()
-  for (const word of words) {
-    const maximumStage = Math.max(stage, word.stage)
-    const task = writingTaskIdsForWord(word.word)
-      .map((taskId) => writingById.get(taskId))
-      .filter(
-        (item): item is WritingTask =>
-          item !== undefined && item.stage <= maximumStage,
-      )
-      .sort(
-        (left, right) =>
-          Number(SHORT_WRITING_TYPES.has(left.type)) -
-            Number(SHORT_WRITING_TYPES.has(right.type)) ||
-          Math.abs(left.stage - word.stage) - Math.abs(right.stage - word.stage) ||
-          left.id.localeCompare(right.id),
-      )[0]
-    if (!task || result.has(task.id)) continue
-    result.set(
-      task.id,
-      candidate(
-        'writing',
-        writingSessionActivity(task.type),
-        task,
-        1_000 - result.size,
-      ),
-    )
-  }
-  return [...result.values()]
-}
-
 export interface DailyCandidatePools {
   review: DailyPlanCandidate[]
   weak: DailyPlanCandidate[]
@@ -157,18 +69,49 @@ export function buildDailyCandidates(
 ): DailyCandidatePools {
   const attempted = new Set(state.attempts.map((attempt) => attempt.refId))
   const stage = state.profile?.currentStage ?? 1
-  const spellingById = new Map(spellingWords.map((item) => [item.id, item]))
+  const availableSpellingWords = [
+    ...spellingWords,
+    ...Object.values(state.customSpellingWords),
+  ]
+  const finalPhase = state.plan?.phase === 'final'
+  const recentWrongCutoff = now.getTime() - 30 * 24 * 60 * 60 * 1000
+  const recentWrongSpelling = new Map<string, number>()
+  for (const attempt of state.attempts) {
+    if (
+      attempt.kind !== 'spelling' ||
+      attempt.correct ||
+      new Date(attempt.at).getTime() < recentWrongCutoff
+    ) {
+      continue
+    }
+    recentWrongSpelling.set(
+      attempt.refId,
+      (recentWrongSpelling.get(attempt.refId) ?? 0) + 1,
+    )
+  }
+  const spellingById = new Map(
+    availableSpellingWords.map((item) => [item.id, item]),
+  )
   const writingById = new Map(writingTasks.map((item) => [item.id, item]))
   const simplifyById = new Map(simplificationTasks.map((item) => [item.id, item]))
   const review: DailyPlanCandidate[] = []
 
   for (const card of Object.values(state.cards)) {
-    if (new Date(card.dueAt).getTime() > now.getTime()) continue
+    const due = new Date(card.dueAt).getTime() <= now.getTime()
+    const finalSpellingPriority =
+      finalPhase && card.kind === 'spelling' && card.lapses > 0
+    if (!due && !finalSpellingPriority) continue
     if (card.kind === 'spelling') {
       const item = spellingById.get(card.refId)
       if (item) {
         review.push({
-          ...candidate('spelling', 'spellingReview', item, card.lapses),
+          ...candidate(
+            'spelling',
+            'spellingReview',
+            item,
+            card.lapses * 100 +
+              (recentWrongSpelling.get(card.refId) ?? 0) * 10,
+          ),
           dueAt: card.dueAt,
         })
       }
@@ -204,10 +147,23 @@ export function buildDailyCandidates(
     }
   }
 
+  if (finalPhase) {
+    prioritizeFinalPhaseReview({
+      state,
+      now,
+      review,
+      spellingById,
+      writingById,
+      simplifyById,
+    })
+  }
+
   const weakMastery = Object.values(state.mastery)
     .filter((mastery) => mastery.score < 55 && !mastery.stable)
     .sort((left, right) => left.score - right.score)
+  const carryOverSkills = new Set(state.plan?.carryOverSkills ?? [])
   const weakSkills = new Set([
+    ...carryOverSkills,
     ...weakMastery
       .filter(({ skillId }) => skillId.startsWith('spelling.'))
       .slice(0, 5)
@@ -226,12 +182,29 @@ export function buildDailyCandidates(
     writingById,
   ).filter((item) => !reviewIds.has(item.refId))
   const reuseWritingIds = new Set(reuseWriting.map(({ refId }) => refId))
-  const weakSpelling = spellingWords
+  const finalCandidates = finalPhase
+    ? buildFinalPhaseWeakCandidates({
+        state,
+        stage,
+        reviewIds,
+        recentWrongSpelling,
+        spellingById,
+        writingById,
+      })
+    : { writing: [], recentWrongSpelling: [] }
+  const weakSpelling = availableSpellingWords
     .filter(
       (item) =>
         item.stage <= stage &&
         !reviewIds.has(item.id) &&
         item.skillIds.some((skill) => weakSkills.has(skill)),
+    )
+    .sort(
+      (left, right) =>
+        Number(right.skillIds.some((skill) => carryOverSkills.has(skill))) -
+          Number(left.skillIds.some((skill) => carryOverSkills.has(skill))) ||
+        left.stage - right.stage ||
+        left.id.localeCompare(right.id),
     )
     .slice(0, 20)
     .map((item) =>
@@ -245,6 +218,17 @@ export function buildDailyCandidates(
         !reuseWritingIds.has(item.id) &&
         item.requiredSkills.some((skill) => weakSkills.has(skill)),
     )
+    .sort(
+      (left, right) =>
+        Number(
+          right.requiredSkills.some((skill) => carryOverSkills.has(skill)),
+        ) -
+          Number(
+            left.requiredSkills.some((skill) => carryOverSkills.has(skill)),
+          ) ||
+        left.stage - right.stage ||
+        left.id.localeCompare(right.id),
+    )
     .slice(0, 12)
     .map((item) =>
       candidate(
@@ -254,7 +238,70 @@ export function buildDailyCandidates(
         80 - item.stage,
       ),
     )
-  const weak = [...reuseWriting, ...weakSpelling, ...weakWriting]
+  const noteErrorTags = new Set<WritingErrorTag>(
+    state.notes
+      .filter(
+        (note) =>
+          !note.conquered &&
+          [
+            'missingSubject',
+            'missingVerb',
+            'wordOrder',
+            'tense',
+            'thirdPersonS',
+            'number',
+            'article',
+            'pronoun',
+            'preposition',
+            'conjunction',
+            'fragment',
+            'runOn',
+            'literalTranslation',
+            'wordChoice',
+            'spelling',
+            'punctuation',
+            'capitalization',
+          ].includes(note.primaryErrorTag),
+      )
+      .map((note) => note.primaryErrorTag as WritingErrorTag),
+  )
+  const feedbackWriting = writingTasks
+    .filter(
+      (item) =>
+        item.stage <= stage &&
+        item.commonErrors.some((tag) => noteErrorTags.has(tag)) &&
+        !reviewIds.has(item.id) &&
+        !reuseWritingIds.has(item.id),
+    )
+    .slice(0, 12)
+    .map((item) =>
+      candidate(
+        'writing',
+        writingSessionActivity(item.type),
+        item,
+        700,
+      ),
+    )
+  const miniLessonCandidate = buildTriggeredMiniLessonCandidate(
+    state.notes,
+    stage,
+  )
+  const weakByRef = new Map<string, DailyPlanCandidate>()
+  for (const item of [
+    ...(miniLessonCandidate ? [miniLessonCandidate] : []),
+    ...finalCandidates.writing,
+    ...feedbackWriting,
+    ...reuseWriting,
+    ...finalCandidates.recentWrongSpelling,
+    ...weakSpelling,
+    ...weakWriting,
+  ]) {
+    const current = weakByRef.get(item.refId)
+    if (!current || (item.priority ?? 0) > (current.priority ?? 0)) {
+      weakByRef.set(item.refId, item)
+    }
+  }
+  const weak = [...weakByRef.values()]
   const reservedIds = new Set(
     [...review, ...weak].map(({ refId }) => refId),
   )
@@ -273,7 +320,9 @@ export function buildDailyCandidates(
       .slice(0, 8),
   ]
 
-  const newItems = [
+  const newItems = finalPhase
+    ? []
+    : [
     ...spellingWords
       .filter(
         (item) =>
@@ -300,7 +349,7 @@ export function buildDailyCandidates(
           skillIds: ['writing.japaneseSimplification'],
         }),
       ),
-  ]
+      ]
   return {
     review,
     weak,

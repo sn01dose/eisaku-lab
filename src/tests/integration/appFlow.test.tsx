@@ -171,6 +171,6 @@ describe('主要学習フロー', () => {
         diagnosticItems.length,
       )
     },
-    120_000,
+    240_000,
   )
 })

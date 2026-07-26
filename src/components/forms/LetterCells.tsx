@@ -15,6 +15,7 @@ import {
   type ExpandedLetterCellOperation,
   type LetterCellOperation,
 } from "./letterCellOperations";
+import { ENGLISH_INPUT_PROPS } from "./inputPolicy";
 
 export type {
   LetterCellOperation,
@@ -193,6 +194,7 @@ export function LetterCells({
       >
         {mode === "input" && (
           <input
+            {...ENGLISH_INPUT_PROPS}
             ref={inputRef}
             className="letter-cells__native-input"
             value={value}
@@ -202,13 +204,8 @@ export function LetterCells({
             onBlur={() => setFocused(false)}
             aria-label={label}
             aria-describedby={feedback ? feedbackId : undefined}
-            autoCapitalize="off"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-            inputMode="text"
+            data-input-policy-id="spelling.answer"
             enterKeyHint="done"
-            lang="en"
             disabled={disabled}
           />
         )}

@@ -24,6 +24,7 @@ export type ExpandedSpellingSeed = readonly [
     ...RequiredSpellingPatternId[],
   ],
   partOfSpeech?: string,
+  chunks?: readonly string[],
 ]
 
 interface ExampleSource {
@@ -119,55 +120,155 @@ function errorsFor(
   return [...errors]
 }
 
-const AFFIXES: Readonly<Record<string, readonly string[]>> = {
-  'prefix-un': ['un'],
-  'prefix-re': ['re'],
-  'prefix-dis': ['dis'],
-  'prefix-in-im': ['in', 'im'],
-  'prefix-pre': ['pre'],
-  'prefix-ex': ['ex'],
-  'prefix-com-con': ['com', 'con'],
-  'suffix-tion': ['tion'],
-  'suffix-sion': ['sion'],
-  'suffix-ture': ['ture'],
-  'suffix-ous': ['ous'],
-  'suffix-ive': ['ive'],
-  'suffix-able-ible': ['able', 'ible'],
-  'suffix-ment': ['ment'],
-  'suffix-ness': ['ness'],
-  'suffix-ful': ['ful'],
-  'suffix-ly': ['ly'],
-  'inflection-s-es': ['es', 's'],
-  'inflection-ed': ['ed'],
-  'inflection-ing': ['ing'],
+const VOWELS = new Set(['a', 'e', 'i', 'o', 'u', 'y'])
+const COMMON_ONSETS = new Set([
+  'bl',
+  'br',
+  'ch',
+  'cl',
+  'cr',
+  'dr',
+  'fl',
+  'fr',
+  'gl',
+  'gr',
+  'ph',
+  'pl',
+  'pr',
+  'sc',
+  'sh',
+  'sk',
+  'sl',
+  'sm',
+  'sn',
+  'sp',
+  'st',
+  'sw',
+  'th',
+  'tr',
+  'tw',
+  'wh',
+  'wr',
+  'scr',
+  'spl',
+  'spr',
+  'str',
+])
+
+const SYLLABLE_OVERRIDES: Readonly<Record<string, readonly string[]>> = {
+  action: ['act', 'ion'],
+  discussion: ['dis', 'cus', 'sion'],
+  expand: ['expand'],
+  knowledge: ['know', 'ledge'],
+  pressure: ['pres', 'sure'],
+  serious: ['se', 'ri', 'ous'],
+  situation: ['sit', 'u', 'a', 'tion'],
+  success: ['suc', 'cess'],
+  unable: ['un', 'a', 'ble'],
+  work: ['work'],
+  young: ['young'],
 }
 
-function morphemeChunks(
-  word: string,
-  patterns: readonly RequiredSpellingPatternId[],
-): { chunks: string[]; labels?: string[] } {
-  for (const pattern of patterns) {
-    const affixes = AFFIXES[pattern] ?? []
-    for (const affix of affixes) {
-      if (pattern.startsWith('prefix-') && word.startsWith(affix)) {
-        return {
-          chunks: [affix, word.slice(affix.length)],
-          labels: ['接頭辞', '語幹'],
-        }
-      }
-      if (
-        (pattern.startsWith('suffix-') || pattern.startsWith('inflection-')) &&
-        word.endsWith(affix) &&
-        word.length > affix.length
-      ) {
-        return {
-          chunks: [word.slice(0, -affix.length), affix],
-          labels: ['語幹', pattern.startsWith('suffix-') ? '接尾辞' : '語形変化'],
-        }
-      }
+function isVowel(word: string, index: number): boolean {
+  const letter = word[index]
+  if (!VOWELS.has(letter)) return false
+  return letter !== 'y' || index > 0
+}
+
+function vowelNuclei(word: string): Array<{ start: number; end: number }> {
+  const nuclei: Array<{ start: number; end: number }> = []
+  let index = 0
+  while (index < word.length) {
+    const finalSilentE =
+      index === word.length - 1 &&
+      word[index] === 'e' &&
+      nuclei.length > 0
+    if (!isVowel(word, index) || finalSilentE) {
+      index += 1
+      continue
     }
+    const start = index
+    index += 1
+    while (index < word.length && isVowel(word, index)) index += 1
+    nuclei.push({ start, end: index })
   }
-  return { chunks: [word] }
+  return nuclei
+}
+
+function onsetLength(consonants: string): number {
+  for (const length of [3, 2]) {
+    const candidate = consonants.slice(-length)
+    if (COMMON_ONSETS.has(candidate)) return length
+  }
+  return 0
+}
+
+/**
+ * Produces orthographic sound chunks without claiming an etymology.
+ * Manual morpheme data always takes precedence in makeExpandedSpellingPack.
+ */
+export function syllableChunks(word: string): string[] {
+  const normalized = word.toLowerCase()
+  const override = SYLLABLE_OVERRIDES[normalized]
+  if (override) return [...override]
+
+  const nuclei = vowelNuclei(normalized)
+  if (nuclei.length === 0 || normalized.length <= 3) return [word]
+
+  if (nuclei.length === 1) {
+    const nucleus = nuclei[0]
+    const boundary =
+      nucleus.start > 0
+        ? nucleus.start
+        : nucleus.end < normalized.length - 1
+          ? nucleus.end
+          : 0
+    return boundary > 0
+      ? [word.slice(0, boundary), word.slice(boundary)]
+      : [word]
+  }
+
+  const boundaries: number[] = []
+  for (let index = 0; index < nuclei.length - 1; index += 1) {
+    const left = nuclei[index]
+    const right = nuclei[index + 1]
+    const consonants = normalized.slice(left.end, right.start)
+    let boundary = left.end
+    if (consonants.length === 1) {
+      boundary = left.end
+    } else if (consonants.length > 1) {
+      const onset = onsetLength(consonants)
+      boundary = onset > 0 ? right.start - onset : right.start - 1
+    }
+    if (boundary > 0 && boundary < word.length) boundaries.push(boundary)
+  }
+
+  const chunks: string[] = []
+  let start = 0
+  for (const boundary of [...new Set(boundaries)].sort((a, b) => a - b)) {
+    if (boundary <= start) continue
+    chunks.push(word.slice(start, boundary))
+    start = boundary
+  }
+  chunks.push(word.slice(start))
+  return chunks.filter(Boolean)
+}
+
+function labelsForManualChunks(
+  chunks: readonly string[],
+  patterns: readonly RequiredSpellingPatternId[],
+): string[] {
+  const hasPrefix = patterns.some((pattern) => pattern.startsWith('prefix-'))
+  const hasInflection = patterns.some((pattern) =>
+    pattern.startsWith('inflection-'),
+  )
+  const hasSuffix = patterns.some((pattern) => pattern.startsWith('suffix-'))
+  return chunks.map((_, index) => {
+    if (index === 0 && hasPrefix) return '接頭辞'
+    if (index === chunks.length - 1 && hasInflection) return '語形変化'
+    if (index === chunks.length - 1 && hasSuffix) return '接尾辞'
+    return '語幹'
+  })
 }
 
 function swapDistinctPair(word: string): string {
@@ -193,9 +294,13 @@ export function makeExpandedSpellingPack(
   firstNumber: number,
   seeds: readonly ExpandedSpellingSeed[],
 ): SpellingWord[] {
-  return seeds.map(([word, meaningJa, stage, patterns, partOfSpeech], index) => {
+  return seeds.map((seed, index) => {
+    const [word, meaningJa, stage, patterns, partOfSpeech, manualChunks] = seed
     const strategy = strategyFor(patterns)
-    const { chunks, labels } = morphemeChunks(word, patterns)
+    if (manualChunks && manualChunks.join('') !== word) {
+      throw new Error(`Manual chunks do not reconstruct "${word}".`)
+    }
+    const chunks = manualChunks ? [...manualChunks] : syllableChunks(word)
     const example = findExample(word)
     return {
       id: `sp-${String(firstNumber + index).padStart(4, '0')}`,
@@ -205,8 +310,10 @@ export function makeExpandedSpellingPack(
       partOfSpeech: partOfSpeech ?? '語',
       strategy,
       chunks,
-      chunkKind: strategy === 'morpheme' ? 'morpheme' : 'phonetic',
-      ...(labels ? { chunkLabels: labels } : {}),
+      chunkKind: manualChunks ? 'morpheme' : 'phonetic',
+      ...(manualChunks
+        ? { chunkLabels: labelsForManualChunks(manualChunks, patterns) }
+        : {}),
       patterns: [...patterns],
       skillIds: skillsFor(patterns),
       exampleEn: example.en,

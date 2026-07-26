@@ -161,6 +161,7 @@ export function SimplificationTrainer({
         <label className="answer-field">
           <span className="field-label">簡単な日本語に言い換える</span>
           <textarea
+            data-input-policy-id="simplification.answer"
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             onFocus={(event) =>

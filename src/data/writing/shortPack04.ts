@@ -1,4 +1,9 @@
-import { makeSentencePatternTasks, type SentencePatternSeed } from '../factories'
+import {
+  makeSentencePatternTasks,
+  withRequiredSimplifiedJapanese,
+  type SentencePatternSeed,
+} from '../factories'
+import { legacyAdvancedSimplifications } from './legacyAdvancedSimplifications'
 
 const patterns = [
   {
@@ -10,7 +15,7 @@ const patterns = [
     explanation: '一つの事実から強すぎる結論を出さないよう、not necessarily で推論の範囲を限定します。',
     variants: [
       { promptJa: '情報量が増えることは、知識が深まることを必ずしも意味しません。', modelAnswers: ['Having more information does not necessarily mean having deeper knowledge.', 'An increase in available information does not automatically improve understanding.'], theme: '情報' },
-      { promptJa: '新しい技術であることは、社会に利益をもたらすことを必ずしも意味しません。', modelAnswers: ['The fact that a technology is new does not necessarily mean that it benefits society.', 'A recent innovation is not always socially useful.'], theme: '科学技術' },
+      { promptJa: '新しい技術であることは、社会に利益をもたらすことを必ずしも意味しません。', modelAnswers: ['New technology does not necessarily benefit society.', 'A recent innovation is not always socially useful.'], theme: '科学技術' },
       { promptJa: '外国での経験があることは、異文化を理解していることを必ずしも意味しません。', modelAnswers: ['Having experience in a foreign country does not necessarily mean understanding its culture.', 'Living abroad does not automatically provide deep cultural knowledge.'], theme: '異文化理解' },
       { promptJa: '政府の支出が増えることは、サービスが改善することを必ずしも意味しません。', modelAnswers: ['Higher government spending does not necessarily mean better services.', 'An increase in public spending will not automatically improve what citizens receive.'], theme: '社会' },
       { promptJa: 'すぐに答えることは、よいコミュニケーションを必ずしも意味しません。', modelAnswers: ['Replying immediately does not necessarily mean communicating well.', 'A quick answer is not always a responsible or thoughtful response.'], theme: 'コミュニケーション' },
@@ -24,8 +29,8 @@ const patterns = [
     commonErrors: ['wordOrder', 'number', 'literalTranslation'],
     explanation: '二つの変化が連動する関係を the more ... , the more/less ... の対応した形で表します。',
     variants: [
-      { promptJa: '画面を見る時間が長いほど、目と親指への負担が増える場合があります。', modelAnswers: ['The more time we spend on screens, the greater the strain on our eyes and thumbs may become.', 'Longer screen use can increase discomfort in the eyes, wrist, and thumb.'], theme: '健康' },
-      { promptJa: '政策の目的が明確であるほど、政府は結果を評価しやすくなります。', modelAnswers: ['The clearer a policy\'s purpose is, the easier it is for the government to evaluate the result.', 'Government evaluation improves when a policy has a clearly defined goal.'], theme: '社会' },
+      { promptJa: '画面を見る時間が長いほど、目と親指への負担が増える場合があります。', modelAnswers: ['More screen time may put greater strain on our eyes and thumbs.', 'Longer screen use can increase discomfort in the eyes, wrist, and thumb.'], theme: '健康' },
+      { promptJa: '政策の目的が明確であるほど、政府は結果を評価しやすくなります。', modelAnswers: ['The clearer a policy\'s goal is, the easier evaluation becomes.', 'Government evaluation improves when a policy has a clearly defined goal.'], theme: '社会' },
       { promptJa: '外国の人と話す経験が増えるほど、違いを恐れなくなります。', modelAnswers: ['The more experience we have communicating with foreign people, the less we fear differences.', 'Regular intercultural communication can reduce anxiety about unfamiliar customs.'], theme: '異文化理解' },
       { promptJa: '製品の設計が複雑になるほど、修理に必要な知識が増えます。', modelAnswers: ['The more complex a product\'s design becomes, the more knowledge is necessary to repair it.', 'As technology grows more complex, repairing it requires greater technical knowledge.'], theme: '科学技術' },
     ],
@@ -112,10 +117,10 @@ const patterns = [
     commonErrors: ['literalTranslation', 'wordOrder', 'runOn'],
     explanation: '二つの that 節で事実とそこからは導けない結論を分け、推論の飛躍を防ぎます。',
     variants: [
-      { promptJa: 'ある制度が長く続いてきたという事実は、それが現在も正しいことを意味しません。', modelAnswers: ['The fact that a system has existed for a long time does not mean that it is still right.', 'A long-established policy is not necessarily suitable for present society.'], theme: '社会' },
+      { promptJa: 'ある制度が長く続いてきたという事実は、それが現在も正しいことを意味しません。', modelAnswers: ['A long history does not mean a system is still right.', 'A long-established policy is not necessarily suitable for present society.'], theme: '社会' },
       { promptJa: '技術がすぐ答えを出すという事実は、その判断が責任あるものだという意味ではありません。', modelAnswers: ['The fact that technology provides an immediate answer does not mean that its judgment is responsible.', 'Speed alone cannot show whether an automated decision is fair or well founded.'], theme: 'AI' },
-      { promptJa: '外国の制度に成功例があるという事実は、同じ政策が日本でも成功することを意味しません。', modelAnswers: ['The fact that a policy succeeded in a foreign country does not mean that it will succeed in Japan.', 'An overseas success cannot be copied without considering differences in society.'], theme: '社会' },
-      { promptJa: '十分なデータがあるという事実は、必要な知識がすべて得られたことを意味しません。', modelAnswers: ['The fact that we have enough data does not mean that we have all the necessary knowledge.', 'A large dataset does not automatically provide complete understanding.'], theme: '科学技術' },
+      { promptJa: '外国の制度に成功例があるという事実は、同じ政策が日本でも成功することを意味しません。', modelAnswers: ['Success abroad does not mean the same policy will work in Japan.', 'An overseas success cannot be copied without considering differences in society.'], theme: '社会' },
+      { promptJa: '十分なデータがあるという事実は、必要な知識がすべて得られたことを意味しません。', modelAnswers: ['Enough data does not mean that our knowledge is complete.', 'A large dataset does not automatically provide complete understanding.'], theme: '科学技術' },
       { promptJa: '運動が利益をもたらすという事実は、膝の痛みを無視してよいことを意味しません。', modelAnswers: ['The fact that exercise provides health benefits does not mean that we should ignore knee pain.', 'Although exercise is beneficial, persistent pain in the knee requires responsible attention.'], theme: '健康' },
     ],
   },
@@ -157,7 +162,7 @@ const patterns = [
     commonErrors: ['wordOrder', 'literalTranslation', 'preposition'],
     explanation: '価値の所在を lies not in A but in B で対比し、抽象的な評価を具体的な機能へ変えます。',
     variants: [
-      { promptJa: '教育の価値は正解の数ではなく、考えを改善する力にあります。', modelAnswers: ['The value of education lies not in the number of right answers but in the ability to improve our thinking.', 'Education matters less for producing correct responses than for developing thoughtful learners.'], theme: '教育制度' },
+      { promptJa: '教育の価値は正解の数ではなく、考えを改善する力にあります。', modelAnswers: ['Education is valuable because it improves thinking, not because it produces many right answers.', 'Education matters less for producing correct responses than for developing thoughtful learners.'], theme: '教育制度' },
       { promptJa: '外国での経験の価値は珍しさではなく、自分の前提を見直すことにあります。', modelAnswers: ['The value of foreign experience lies not in its novelty but in the process of reconsidering our assumptions.', 'Living abroad matters because it can change how we view our own society, not because it seems unusual.'], theme: '異文化理解' },
       { promptJa: '選挙運動の価値は標語ではなく、政策の違いを明確にすることにあります。', modelAnswers: ['The value of an election campaign lies not in its slogans but in clarifying policy differences.', 'A campaign is useful when it helps voters compare policies rather than simply repeating memorable signals.'], theme: '社会' },
       { promptJa: '要約の価値は文章を短くすることではなく、中心的な考えを示すことにあります。', modelAnswers: ['The value of a summary lies not in making a text shorter but in revealing its central idea.', 'A summary succeeds by preserving the main claim, not merely by reducing word count.'], theme: '要約' },
@@ -173,7 +178,7 @@ const patterns = [
     explanation: '許容できる範囲を only to the extent that で限定し、目的と手段の比例を示します。',
     variants: [
       { promptJa: '監視は、具体的な危険を減らす範囲でのみ正当化されます。', modelAnswers: ['Surveillance is justified only to the extent that it reduces a specific danger.', 'Monitoring should be allowed only when its clear safety benefit is greater than its cost to privacy.'], theme: '社会' },
-      { promptJa: '個人データの利用は、研究に本当に必要な範囲でのみ認められます。', modelAnswers: ['The use of personal data is justified only to the extent that it is necessary for the research.', 'Researchers should receive only the information required to achieve the stated purpose.'], theme: '科学技術' },
+      { promptJa: '個人データの利用は、研究に本当に必要な範囲でのみ認められます。', modelAnswers: ['Personal data should be used only when research truly requires it.', 'Researchers should receive only the information required to achieve the stated purpose.'], theme: '科学技術' },
       { promptJa: '観光開発は、地域社会が利益を受ける範囲でのみ正当化されます。', modelAnswers: ['Tourism development is justified only to the extent that the local community benefits from it.', 'Expanding tourism is responsible only when residents receive real economic and social benefits.'], theme: '観光' },
       { promptJa: '宿題でのAI利用は、生徒の知識を改善する範囲でのみ認められます。', modelAnswers: ['AI use in homework is justified only to the extent that it improves students\' knowledge.', 'Students should use AI only when it supports learning rather than replacing their own thinking.'], theme: 'AI' },
       { promptJa: '歴史的な墓の公開は、保存を損なわない範囲でのみ認められます。', modelAnswers: ['Public access to a historic tomb is justified only to the extent that preservation is not harmed.', 'Visitors should be admitted only when the site can be protected from damage.'], theme: '文化' },
@@ -187,11 +192,11 @@ const patterns = [
     commonErrors: ['wordChoice', 'runOn', 'literalTranslation'],
     explanation: '筆者の中心主張と主要な理由を一文にまとめ、細かな例は必要な場合だけ残します。',
     variants: [
-      { promptJa: '「修理できる製品を増やせば、廃棄物を減らし消費者の負担も下げられる」という文章を一文で要約してください。', modelAnswers: ['The passage argues that more products should be designed to be repairable because this can reduce waste and lower costs for consumers.', 'The writer supports products that can be repaired, emphasizing environmental and financial benefits.'], theme: '環境' },
-      { promptJa: '「外国語学習は翻訳だけでなく、相手の社会を理解する知識を育てる」という文章を一文で要約してください。', modelAnswers: ['The passage argues that foreign-language learning remains necessary because it develops knowledge of another society as well as translation skills.', 'The writer believes language study benefits intercultural understanding, not merely communication.'], theme: '異文化理解' },
-      { promptJa: '「政府の情報公開は、市民が政策を評価し責任を求めるために必要だ」という文章を要約してください。', modelAnswers: ['The passage argues that government transparency is necessary because citizens need information to evaluate policy and demand responsibility.', 'The writer links open government information with responsible public oversight.'], theme: '社会' },
-      { promptJa: '「技術教育では操作法だけでなく、結果が間違う可能性も教えるべきだ」という文章を要約してください。', modelAnswers: ['The passage argues that technology education should include its limits because students need to recognize when results may be wrong.', 'The writer calls for technical knowledge that includes both operation and critical evaluation.'], theme: '教育制度' },
-      { promptJa: '「地域の運動は、小さくても人々の考えを合わせ、政策への合図を送れる」という文章を要約してください。', modelAnswers: ['The passage argues that even a small local campaign matters because it can align public views and send a signal to policymakers.', 'The writer sees local action as a way to organize communication and influence policy.'], theme: '地域社会' },
+      { promptJa: '「修理できる製品を増やせば、廃棄物を減らし消費者の負担も下げられる」という文章を一文で要約してください。', modelAnswers: ['The passage supports repairable products because they reduce waste and consumer costs.', 'The writer supports products that can be repaired, emphasizing environmental and financial benefits.'], theme: '環境' },
+      { promptJa: '「外国語学習は翻訳だけでなく、相手の社会を理解する知識を育てる」という文章を一文で要約してください。', modelAnswers: ['The passage supports language learning because it develops cultural understanding as well as translation skills.', 'The writer believes language study benefits intercultural understanding, not merely communication.'], theme: '異文化理解' },
+      { promptJa: '「政府の情報公開は、市民が政策を評価し責任を求めるために必要だ」という文章を要約してください。', modelAnswers: ['The passage supports open government because citizens need information to evaluate policy.', 'The writer links open government information with responsible public oversight.'], theme: '社会' },
+      { promptJa: '「技術教育では操作法だけでなく、結果が間違う可能性も教えるべきだ」という文章を要約してください。', modelAnswers: ['The passage says technology education should teach limits so students can recognize errors.', 'The writer calls for technical knowledge that includes both operation and critical evaluation.'], theme: '教育制度' },
+      { promptJa: '「地域の運動は、小さくても人々の考えを合わせ、政策への合図を送れる」という文章を要約してください。', modelAnswers: ['The passage says local campaigns matter because they organize views and influence policy.', 'The writer sees local action as a way to organize communication and influence policy.'], theme: '地域社会' },
     ],
   },
   {
@@ -205,10 +210,13 @@ const patterns = [
       { promptJa: 'オンライン投票には安全上の危険があります。それでも限定的な試行を提案してください。', modelAnswers: ['Admittedly, online voting creates serious security risks. Nevertheless, the government could test it in a limited, independently reviewed election.', 'Digital voting may be attacked; however, a small transparent trial could provide necessary knowledge before any wider decision.'], theme: '社会' },
       { promptJa: 'スマートフォンは親指や手首に負担をかけます。それでも学習での適切な利用を提案してください。', modelAnswers: ['Admittedly, heavy smartphone use can strain the thumb and wrist. Nevertheless, short, planned sessions can make the device a convenient learning tool.', 'Phones may cause physical discomfort; however, students can benefit if they take breaks and use them responsibly.'], theme: '健康' },
       { promptJa: '歴史的な刀剣の展示には危険があります。それでも教育的な展示方法を提案してください。', modelAnswers: ['Admittedly, displaying a historic knife or sword can be dangerous. Nevertheless, a protected exhibit can provide valuable historical knowledge.', 'Weapons present risks; however, museums can design secure displays that explain their cultural context.'], theme: '文化' },
-      { promptJa: '現職者の辞任だけでは制度上の問題は解決しません。それでも責任を示す意味を認めてください。', modelAnswers: ['Admittedly, asking one official to resign will not solve a structural problem. Nevertheless, resignation can signal that public responsibility has consequences.', 'A minister\'s departure is not enough for reform; however, it may still demonstrate accountability.'], theme: '社会' },
+      { promptJa: '現職者の辞任だけでは制度上の問題は解決しません。それでも責任を示す意味を認めてください。', modelAnswers: ['Admittedly, one resignation cannot fix a system. Nevertheless, it shows that public actions have consequences.', 'A minister\'s departure is not enough for reform; however, it may still demonstrate accountability.'], theme: '社会' },
       { promptJa: '異なる制度をすぐに合わせるのは難しいです。それでも共通基準を作ることを提案してください。', modelAnswers: ['Admittedly, it is difficult to align different systems immediately. Nevertheless, governments can develop shared minimum standards.', 'National differences make full agreement unlikely; however, a common baseline would improve international cooperation.'], theme: '国際社会' },
     ],
   },
 ] satisfies readonly SentencePatternSeed[]
 
-export const shortWritingPack04 = makeSentencePatternTasks(258, patterns)
+export const shortWritingPack04 = withRequiredSimplifiedJapanese(
+  makeSentencePatternTasks(258, patterns),
+  legacyAdvancedSimplifications,
+)
