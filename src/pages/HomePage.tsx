@@ -82,6 +82,12 @@ export function HomePage(): React.JSX.Element {
         </Button>
       </Card>
 
+      {([0, 6] as const).includes(new Date(now).getDay() as 0 | 6) && (
+        <p className="weekend-report-link">
+          <Link to="/report">今週の学習レポートを確認して送れます。</Link>
+        </p>
+      )}
+
       <div className="metric-grid">
         <Link className="metric-card" to="/spelling">
           <span>復習期限</span>

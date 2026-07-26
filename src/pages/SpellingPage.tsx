@@ -41,7 +41,7 @@ export function SpellingPage(): React.JSX.Element {
           </label>
         }
       />
-      <SpellingTrainer items={items} />
+      <SpellingTrainer items={items} key={stage} />
     </AppShell>
   )
 }

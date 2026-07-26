@@ -10,8 +10,9 @@ import {
   isStableMastery,
 } from '../../domain/mastery/updateMastery'
 import type { StudyPlan } from '../../domain/plan/types'
+import type { WeeklySnapshot } from '../../domain/report/types'
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
 type JsonRecord = Record<string, unknown>
 
@@ -112,11 +113,38 @@ function normalizePlan(value: unknown): StudyPlan | null {
   return value as unknown as StudyPlan
 }
 
+function normalizeWeeklySnapshots(value: unknown): WeeklySnapshot[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (snapshot): snapshot is WeeklySnapshot =>
+        isRecord(snapshot) &&
+        typeof snapshot.weekStart === 'string' &&
+        typeof snapshot.studiedDays === 'number' &&
+        typeof snapshot.totalMinutes === 'number' &&
+        typeof snapshot.spellingAttempts === 'number' &&
+        typeof snapshot.spellingRecallAccuracy === 'number' &&
+        typeof snapshot.wordStableCount === 'number' &&
+        typeof snapshot.writingAttempts === 'number' &&
+        typeof snapshot.paragraphCount === 'number' &&
+        typeof snapshot.supportLevel === 'number' &&
+        (typeof snapshot.withinLimitWordsAvg === 'number' ||
+          snapshot.withinLimitWordsAvg === null) &&
+        Array.isArray(snapshot.topErrorTags) &&
+        Number.isInteger(snapshot.stage) &&
+        Number(snapshot.stage) >= 1 &&
+        Number(snapshot.stage) <= 6,
+    )
+    .sort((left, right) => left.weekStart.localeCompare(right.weekStart))
+    .slice(-26)
+}
+
 export function createInitialState(now = new Date()): AppState {
   return {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: null,
     plan: null,
+    weeklySnapshots: [],
     customSpellingWords: {},
     cards: {},
     attempts: [],
@@ -133,6 +161,7 @@ function migrateVersionZero(raw: JsonRecord, now: Date): AppState {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: normalizeProfile(raw.profile ?? raw.learner, now),
     plan: null,
+    weeklySnapshots: [],
     customSpellingWords: {},
     cards: isRecord(raw.cards)
       ? (raw.cards as AppState['cards'])
@@ -159,6 +188,7 @@ function normalizeVersionOne(raw: JsonRecord, now: Date): AppState {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     profile: normalizeProfile(raw.profile, now),
     plan: null,
+    weeklySnapshots: [],
     customSpellingWords: isRecord(raw.customSpellingWords)
       ? (raw.customSpellingWords as AppState['customSpellingWords'])
       : {},
@@ -187,6 +217,13 @@ function normalizeVersionTwo(raw: JsonRecord, now: Date): AppState {
   }
 }
 
+function normalizeVersionThree(raw: JsonRecord, now: Date): AppState {
+  return {
+    ...normalizeVersionTwo(raw, now),
+    weeklySnapshots: normalizeWeeklySnapshots(raw.weeklySnapshots),
+  }
+}
+
 export function migrateState(raw: unknown, now = new Date()): AppState {
   if (!isRecord(raw)) {
     throw new Error('バックアップの形式が正しくありません。')
@@ -203,5 +240,6 @@ export function migrateState(raw: unknown, now = new Date()): AppState {
   }
   if (version === 0) return migrateVersionZero(raw, now)
   if (version === 1) return normalizeVersionOne(raw, now)
-  return normalizeVersionTwo(raw, now)
+  if (version === 2) return normalizeVersionTwo(raw, now)
+  return normalizeVersionThree(raw, now)
 }

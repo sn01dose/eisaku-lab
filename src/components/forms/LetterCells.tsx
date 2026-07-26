@@ -3,7 +3,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type ClipboardEvent,
   type ChangeEvent,
+  type FocusEvent,
   type KeyboardEvent,
 } from "react";
 import { classNames } from "../classNames";
@@ -110,9 +112,10 @@ export function LetterCells({
   onSubmit,
   onHint,
 }: LetterCellsProps): React.JSX.Element {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputGroupRef = useRef<HTMLDivElement>(null);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const feedbackId = useId();
-  const [focused, setFocused] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const answerLength = [...correctAnswer].length;
   const visualLength =
     expectedLength ??
@@ -146,30 +149,120 @@ export function LetterCells({
         ? "letter-cells--long"
         : undefined;
 
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onChange?.(event.currentTarget.value);
+  const focusCell = (index: number) => {
+    const boundedIndex = Math.max(0, Math.min(index, visualLength - 1));
+    inputRefs.current[boundedIndex]?.focus();
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleChange = (
+    index: number,
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const nextCharacters = [...value].slice(0, visualLength);
+    const enteredCharacters = [...event.currentTarget.value];
+
+    if (enteredCharacters.length === 0) {
+      if (index < nextCharacters.length) {
+        nextCharacters.splice(index, 1);
+        onChange?.(nextCharacters.join(""));
+      }
+      return;
+    }
+
+    const targetIndex = Math.min(index, nextCharacters.length);
+    nextCharacters[targetIndex] =
+      enteredCharacters[enteredCharacters.length - 1];
+    onChange?.(nextCharacters.join(""));
+    focusCell(Math.min(targetIndex + 1, visualLength - 1));
+  };
+
+  const handleKeyDown = (
+    index: number,
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (event.key === "Enter" && onSubmit) {
       event.preventDefault();
       onSubmit(value);
     } else if (event.key === "?" && onHint) {
       event.preventDefault();
       onHint();
+    } else if (event.key === "ArrowLeft" && index > 0) {
+      event.preventDefault();
+      focusCell(index - 1);
+    } else if (event.key === "ArrowRight" && index < visualLength - 1) {
+      event.preventDefault();
+      focusCell(index + 1);
+    } else if (event.key === "Backspace") {
+      const nextCharacters = [...value].slice(0, visualLength);
+
+      if (nextCharacters[index]) {
+        event.preventDefault();
+        nextCharacters.splice(index, 1);
+        onChange?.(nextCharacters.join(""));
+        return;
+      }
+
+      if (index > 0) {
+        event.preventDefault();
+        nextCharacters.splice(index - 1, 1);
+        onChange?.(nextCharacters.join(""));
+        focusCell(index - 1);
+      }
     }
   };
 
-  const handleFocus = () => {
-    setFocused(true);
-    requestAnimationFrame(() => {
-      const reducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      inputRef.current?.scrollIntoView({
-        block: "center",
-        behavior: reducedMotion ? "auto" : "smooth",
+  const handlePaste = (
+    index: number,
+    event: ClipboardEvent<HTMLInputElement>,
+  ) => {
+    const pastedCharacters = [
+      ...event.clipboardData.getData("text"),
+    ];
+    if (pastedCharacters.length === 0) return;
+
+    event.preventDefault();
+    const nextCharacters = [...value].slice(0, visualLength);
+    const targetIndex = Math.min(index, nextCharacters.length);
+    const availableLength = visualLength - targetIndex;
+    const acceptedCharacters = pastedCharacters.slice(0, availableLength);
+
+    nextCharacters.splice(
+      targetIndex,
+      acceptedCharacters.length,
+      ...acceptedCharacters,
+    );
+    onChange?.(nextCharacters.slice(0, visualLength).join(""));
+    focusCell(
+      Math.min(targetIndex + acceptedCharacters.length, visualLength - 1),
+    );
+  };
+
+  const handleFocus = (
+    index: number,
+    event: FocusEvent<HTMLInputElement>,
+  ) => {
+    const wasOutsideGroup = focusedIndex === null;
+    setFocusedIndex(index);
+    event.currentTarget.select();
+
+    if (wasOutsideGroup) {
+      requestAnimationFrame(() => {
+        const reducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        inputGroupRef.current?.scrollIntoView({
+          block: "center",
+          behavior: reducedMotion ? "auto" : "smooth",
+        });
       });
+    }
+  };
+
+  const handleBlur = () => {
+    requestAnimationFrame(() => {
+      if (!inputGroupRef.current?.contains(document.activeElement)) {
+        setFocusedIndex(null);
+      }
     });
   };
 
@@ -183,7 +276,7 @@ export function LetterCells({
         "letter-cells",
         `letter-cells--${mode}`,
         sizeClass,
-        focused && "letter-cells--focused",
+        focusedIndex !== null && "letter-cells--focused",
         className,
       )}
     >
@@ -192,30 +285,25 @@ export function LetterCells({
         role={mode === "graded" ? "img" : undefined}
         aria-label={mode === "graded" ? accessibleResult : undefined}
       >
-        {mode === "input" && (
-          <input
-            {...ENGLISH_INPUT_PROPS}
-            ref={inputRef}
-            className="letter-cells__native-input"
-            value={value}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onFocus={handleFocus}
-            onBlur={() => setFocused(false)}
-            aria-label={label}
-            aria-describedby={feedback ? feedbackId : undefined}
-            data-input-policy-id="spelling.answer"
-            enterKeyHint="done"
-            disabled={disabled}
-          />
-        )}
-        <div className="letter-cells__groups" aria-hidden="true">
+        <div
+          ref={mode === "input" ? inputGroupRef : undefined}
+          className="letter-cells__groups"
+          role={mode === "input" ? "group" : undefined}
+          aria-label={mode === "input" ? label : undefined}
+          aria-describedby={
+            mode === "input" && feedback ? feedbackId : undefined
+          }
+          aria-roledescription={
+            mode === "input" ? "1文字ずつ入力する綴り欄" : undefined
+          }
+          aria-hidden={mode === "graded" ? "true" : undefined}
+        >
           {chunkLengths.map((chunkLength, groupIndex) => {
             const start = chunkLengths
               .slice(0, groupIndex)
               .reduce((sum, length) => sum + length, 0);
             const isLastGroup = groupIndex === chunkLengths.length - 1;
-            const extraCount = isLastGroup
+            const extraCount = mode === "graded" && isLastGroup
               ? Math.max(0, inputCharacters.length - visualLength)
               : 0;
             const groupInputCharacters = inputCharacters.slice(
@@ -238,32 +326,60 @@ export function LetterCells({
                         (_, index) => {
                           const absoluteIndex = start + index;
                           const character = groupInputCharacters[index] ?? "";
-                          const active =
-                            focused &&
-                            absoluteIndex ===
-                              Math.min(inputCharacters.length, visualLength - 1);
 
                           return (
                             <span
                               className={classNames(
                                 "letter-cell",
                                 character && "letter-cell--filled",
-                                active && "letter-cell--active",
+                                focusedIndex === absoluteIndex &&
+                                  "letter-cell--active",
                               )}
                               key={absoluteIndex}
                             >
-                              <span className="letter-cell__main">
-                                {character || "\u00a0"}
-                              </span>
+                              <input
+                                {...ENGLISH_INPUT_PROPS}
+                                ref={(element) => {
+                                  inputRefs.current[absoluteIndex] = element;
+                                }}
+                                className="letter-cell__input"
+                                type="text"
+                                value={character}
+                                maxLength={1}
+                                onChange={(event) =>
+                                  handleChange(absoluteIndex, event)
+                                }
+                                onKeyDown={(event) =>
+                                  handleKeyDown(absoluteIndex, event)
+                                }
+                                onPaste={(event) =>
+                                  handlePaste(absoluteIndex, event)
+                                }
+                                onFocus={(event) =>
+                                  handleFocus(absoluteIndex, event)
+                                }
+                                onBlur={handleBlur}
+                                aria-label={`${absoluteIndex + 1}文字目（全${visualLength}文字）`}
+                                data-input-policy-id="spelling.answer"
+                                enterKeyHint="done"
+                                disabled={disabled}
+                              />
                             </span>
                           );
                         },
                       )}
                 </span>
-                <span className="letter-cells__chunk-rule" />
-                <span className="letter-cells__chunk-label">
-                  {chunkLabels?.[groupIndex] ?? chunks?.[groupIndex] ?? "\u00a0"}
-                </span>
+                {chunks && <span className="letter-cells__chunk-rule" />}
+                {chunks &&
+                  (chunkLabels === undefined
+                    ? chunks[groupIndex]
+                    : chunkLabels[groupIndex]) && (
+                    <span className="letter-cells__chunk-label">
+                      {chunkLabels === undefined
+                        ? chunks[groupIndex]
+                        : chunkLabels[groupIndex]}
+                    </span>
+                  )}
               </span>
             );
           })}

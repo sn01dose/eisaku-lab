@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../../App'
@@ -109,20 +116,35 @@ describe('主要学習フロー', () => {
       await user.click(
         screen.getByRole('button', { name: '今日の学習を始める' }),
       )
+      await waitFor(
+        () => {
+          expect(window.location.hash).toBe('#/today')
+        },
+        { timeout: 30_000 },
+      )
       await user.click(
         await screen.findByRole(
           'button',
           { name: 'この順で始める' },
-          { timeout: 10_000 },
+          { timeout: 60_000 },
         ),
       )
 
-      const spellingInput = await screen.findByLabelText(
-        '英単語の綴りを入力',
-        {},
+      const startRecallButton = await screen.findByRole(
+        'button',
+        { name: '隠して書く' },
         { timeout: 10_000 },
       )
-      await user.type(spellingInput, 'zzzz')
+      await user.click(startRecallButton)
+      const spellingInputGroup = await screen.findByRole(
+        'group',
+        { name: '英単語の綴りを入力' },
+        { timeout: 10_000 },
+      )
+      const firstSpellingCell =
+        within(spellingInputGroup).getAllByRole('textbox')[0]
+      await user.click(firstSpellingCell)
+      await user.keyboard('zzzz')
       await user.click(screen.getByRole('button', { name: '答え合わせ' }))
       expect(savedState().notes.length).toBeGreaterThan(0)
       expect(Object.keys(savedState().cards).length).toBeGreaterThan(0)

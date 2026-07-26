@@ -1,50 +1,192 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LetterCells } from "../../components";
 
 afterEach(cleanup);
 
+function ControlledLetterCells({
+  initialValue = "",
+  correctAnswer = "test",
+  onHint,
+  onSubmit,
+}: {
+  initialValue?: string;
+  correctAnswer?: string;
+  onHint?: () => void;
+  onSubmit?: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+
+  return (
+    <>
+      <output data-testid="current-value">{value}</output>
+      <LetterCells
+        value={value}
+        correctAnswer={correctAnswer}
+        expectedLength={correctAnswer.length}
+        onChange={setValue}
+        onHint={onHint}
+        onSubmit={onSubmit}
+      />
+    </>
+  );
+}
+
 describe("LetterCells", () => {
-  it("turns off mobile spelling assistance and submits with Enter", () => {
-    const handleChange = vi.fn();
+  it("renders one protected input per expected letter and submits with Enter", () => {
     const handleSubmit = vi.fn();
 
     render(
-      <LetterCells
-        value="develop"
+      <ControlledLetterCells
+        initialValue="develop"
         correctAnswer="development"
-        chunks={["de", "velop", "ment"]}
-        chunkLabels={["接頭辞", "語幹", "接尾辞"]}
-        onChange={handleChange}
         onSubmit={handleSubmit}
       />,
     );
 
-    const input = screen.getByLabelText("英単語の綴りを入力");
-    expect(input.getAttribute("autocapitalize")).toBe("off");
-    expect(input.getAttribute("autocorrect")).toBe("off");
-    expect(input.getAttribute("autocomplete")).toBe("off");
-    expect(input.getAttribute("spellcheck")).toBe("false");
-    expect(input.getAttribute("enterkeyhint")).toBe("done");
+    const group = screen.getByRole("group", {
+      name: "英単語の綴りを入力",
+    });
+    const inputs = within(group).getAllByRole("textbox");
 
-    fireEvent.change(input, { target: { value: "developm" } });
-    expect(handleChange).toHaveBeenCalledWith("developm");
+    expect(inputs).toHaveLength(11);
+    expect(inputs.map((input) => input.getAttribute("value")).join("")).toBe(
+      "develop",
+    );
+    for (const input of inputs) {
+      expect(input).toHaveAttribute("maxlength", "1");
+      expect(input).toHaveAttribute("autocapitalize", "off");
+      expect(input).toHaveAttribute("autocorrect", "off");
+      expect(input).toHaveAttribute("autocomplete", "off");
+      expect(input).toHaveAttribute("spellcheck", "false");
+      expect(input).toHaveAttribute("enterkeyhint", "done");
+    }
 
-    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(inputs[0], { key: "Enter" });
     expect(handleSubmit).toHaveBeenCalledWith("develop");
+  });
+
+  it("advances after a letter and combines the cells for onChange", async () => {
+    const user = userEvent.setup();
+    render(<ControlledLetterCells />);
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.click(inputs[0]);
+    await user.keyboard("t");
+
+    expect(screen.getByTestId("current-value")).toHaveTextContent("t");
+    expect(document.activeElement).toBe(inputs[1]);
+
+    await user.keyboard("e");
+    expect(screen.getByTestId("current-value")).toHaveTextContent("te");
+    expect(document.activeElement).toBe(inputs[2]);
+  });
+
+  it("moves back and deletes the previous letter from an empty cell", async () => {
+    const user = userEvent.setup();
+    render(<ControlledLetterCells initialValue="te" />);
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.click(inputs[2]);
+    await user.keyboard("{Backspace}");
+
+    expect(screen.getByTestId("current-value")).toHaveTextContent("t");
+    expect(document.activeElement).toBe(inputs[1]);
+    expect(inputs[1]).toHaveValue("");
+  });
+
+  it("moves between cells with the left and right arrow keys", async () => {
+    const user = userEvent.setup();
+    render(<ControlledLetterCells initialValue="test" />);
+
+    const inputs = screen.getAllByRole("textbox");
+    await user.click(inputs[1]);
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(inputs[2]);
+
+    await user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(inputs[1]);
+  });
+
+  it("expands a pasted word across all available cells", () => {
+    render(<ControlledLetterCells />);
+
+    const inputs = screen.getAllByRole("textbox");
+    fireEvent.paste(inputs[0], {
+      clipboardData: { getData: () => "test" },
+    });
+
+    expect(screen.getByTestId("current-value")).toHaveTextContent("test");
+    expect(inputs.map((input) => input.getAttribute("value")).join("")).toBe(
+      "test",
+    );
+    expect(document.activeElement).toBe(inputs[3]);
   });
 
   it("opens the hint action from the question-mark key", () => {
     const handleHint = vi.fn();
-    render(<LetterCells value="" onHint={handleHint} />);
+    render(<ControlledLetterCells onHint={handleHint} />);
 
-    fireEvent.keyDown(screen.getByLabelText("英単語の綴りを入力"), {
+    fireEvent.keyDown(screen.getAllByRole("textbox")[0], {
       key: "?",
     });
 
     expect(handleHint).toHaveBeenCalledOnce();
+  });
+
+  it("does not render chunk hints unless their phase supplies them", () => {
+    const { container, rerender } = render(
+      <LetterCells value="" correctAnswer="test" expectedLength={4} />,
+    );
+
+    expect(container.querySelectorAll(".letter-cells__chunk-rule")).toHaveLength(
+      0,
+    );
+    expect(
+      container.querySelectorAll(".letter-cells__chunk-label"),
+    ).toHaveLength(0);
+
+    rerender(
+      <LetterCells
+        value=""
+        correctAnswer="test"
+        expectedLength={4}
+        chunks={["te", "st"]}
+      />,
+    );
+    expect(container.querySelectorAll(".letter-cells__chunk-rule")).toHaveLength(
+      2,
+    );
+    expect(
+      [...container.querySelectorAll(".letter-cells__chunk-label")].map(
+        (element) => element.textContent,
+      ),
+    ).toEqual(["te", "st"]);
+
+    rerender(
+      <LetterCells
+        value=""
+        correctAnswer="test"
+        expectedLength={4}
+        chunks={["te", "st"]}
+        chunkLabels={["te", ""]}
+      />,
+    );
+    expect(
+      [...container.querySelectorAll(".letter-cells__chunk-label")].map(
+        (element) => element.textContent,
+      ),
+    ).toEqual(["te"]);
   });
 
   it("accepts spellDiff-shaped operations and exposes one result sentence", () => {

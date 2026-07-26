@@ -175,6 +175,7 @@ export function TodayPage(): React.JSX.Element {
               items={availableSpellingWords.filter(
                 (item) => item.id === active.refId,
               )}
+              key={active.refId}
               onNext={advance}
             />
           )}

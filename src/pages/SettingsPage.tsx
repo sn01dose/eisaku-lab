@@ -167,6 +167,21 @@ export function SettingsPage(): React.JSX.Element {
           </>
         )}
 
+        <Card label="共有｜本人が内容を選ぶ" title="学習レポート">
+          <p className="settings-description">
+            今週または直近2週間の集計を、OSの共有機能かクリップボードで渡せます。
+          </p>
+          <a
+            className="button button--secondary button--full"
+            href="#/report"
+          >
+            送る内容を確認
+          </a>
+          <p className="privacy-note">
+            レポートは自動では送られません。送る内容は毎回、送る前に全文を確認できます。
+          </p>
+        </Card>
+
         <Card label="指導者向け｜通常画面と分離" title="指導者モード">
           <p className="settings-description">
             技能別の習熟度、解答履歴、支援レベルの調整、CSV出力を確認できます。

@@ -7,7 +7,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.shortVowel'],
     payload: {
       promptJa: '「計画」という意味の正しいつづりを選んでください。',
-      options: ['plan', 'plen', 'plann', 'plane'],
+      options: ['plen', 'plan', 'plann', 'plane'],
       answer: 'plan',
     },
     estimatedSeconds: 20,
@@ -18,7 +18,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.silentLetter'],
     payload: {
       promptJa: '「答え」という意味の正しいつづりを選んでください。',
-      options: ['answer', 'anser', 'awnser', 'answar'],
+      options: ['anser', 'awnser', 'answer', 'answar'],
       answer: 'answer',
     },
     estimatedSeconds: 20,
@@ -29,7 +29,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.vowelTeam'],
     payload: {
       promptJa: '「受け取る」という意味の正しいつづりを選んでください。',
-      options: ['receive', 'recieve', 'receve', 'receeve'],
+      options: ['recieve', 'receve', 'receeve', 'receive'],
       answer: 'receive',
     },
     estimatedSeconds: 20,
@@ -40,7 +40,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.doubleConsonant'],
     payload: {
       promptJa: '「必要な」という意味の正しいつづりを選んでください。',
-      options: ['necessary', 'neccessary', 'necesary', 'necessery'],
+      options: ['neccessary', 'necessary', 'necesary', 'necessery'],
       answer: 'necessary',
     },
     estimatedSeconds: 20,
@@ -51,7 +51,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.suffix'],
     payload: {
       promptJa: '「責任」という意味の正しいつづりを選んでください。',
-      options: ['responsibility', 'responsability', 'responsibilty', 'responsibillity'],
+      options: ['responsability', 'responsibilty', 'responsibility', 'responsibillity'],
       answer: 'responsibility',
     },
     estimatedSeconds: 20,
@@ -62,7 +62,7 @@ export const diagnosticItems = defineDiagnosticItems([
     skillIds: ['spelling.irregular'],
     payload: {
       promptJa: '「リズム」という意味の正しいつづりを選んでください。',
-      options: ['rhythm', 'rythm', 'rhythym', 'rhithm'],
+      options: ['rythm', 'rhythym', 'rhithm', 'rhythm'],
       answer: 'rhythm',
     },
     estimatedSeconds: 20,

@@ -30,7 +30,9 @@ export const ENGLISH_TEXT_INPUT_IDS = [
 
 export const JAPANESE_TEXT_INPUT_EXCEPTIONS = [
   'onboarding.nickname',
+  'report.comment',
   'simplification.answer',
+  'teacherReport.paste',
   'today.reflection',
   'writingFeedback.pastedFeedback',
   'writingFeedback.parsedNote',

@@ -282,12 +282,22 @@ function swapDistinctPair(word: string): string {
   return letters.join('')
 }
 
+function duplicateMiddleLetter(word: string): string {
+  const index = Math.floor(word.length / 2)
+  const letter = word[index] ?? 'e'
+  return `${word.slice(0, index)}${letter}${word.slice(index)}`
+}
+
 function commonMistakes(word: string): string[] {
   const omissionIndex = Math.max(1, Math.floor(word.length / 2))
   const omission = `${word.slice(0, omissionIndex)}${word.slice(omissionIndex + 1)}`
-  return [...new Set([omission, swapDistinctPair(word)])].filter(
-    (mistake) => mistake !== word,
-  )
+  return [
+    ...new Set([
+      omission,
+      swapDistinctPair(word),
+      duplicateMiddleLetter(word),
+    ]),
+  ].filter((mistake) => mistake !== word)
 }
 
 export function makeExpandedSpellingPack(

@@ -35,6 +35,11 @@ const ProgressPage = lazy(() =>
     default: module.ProgressPage,
   })),
 )
+const ReportPage = lazy(() =>
+  import('../pages/ReportPage').then((module) => ({
+    default: module.ReportPage,
+  })),
+)
 const SettingsPage = lazy(() =>
   import('../pages/SettingsPage').then((module) => ({
     default: module.SettingsPage,
@@ -133,6 +138,7 @@ export function AppRouter(): React.JSX.Element {
               </ProfileGate>
             }
           />
+          <Route path="/teacher" element={<TeacherPage />} />
           <Route
             path="*"
             element={
@@ -171,7 +177,7 @@ export function AppRouter(): React.JSX.Element {
                       </AppShell>
                     }
                   />
-                  <Route path="/teacher" element={<TeacherPage />} />
+                  <Route path="/report" element={<ReportPage />} />
                   <Route
                     path="/settings"
                     element={

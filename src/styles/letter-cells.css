@@ -30,28 +30,31 @@
   box-shadow: 0 0 0 2px var(--ai-100);
 }
 
-.letter-cells__native-input {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
+.letter-cell__input {
+  appearance: none;
   width: 100%;
-  min-height: 100%;
+  min-width: 0;
+  height: 100%;
   margin: 0;
   padding: 0;
   border: 0;
-  opacity: 0;
+  border-radius: 0;
   background: transparent;
-  font-size: 1rem;
+  color: var(--ink-900);
+  font: inherit;
+  line-height: 1.25;
+  text-align: center;
   text-transform: none;
-  caret-color: transparent;
+  caret-color: var(--ai-600);
   cursor: text;
 }
 
-.letter-cells__native-input:focus-visible {
-  outline: 0;
+.letter-cell__input:focus-visible {
+  outline: 2px solid var(--ai-600);
+  outline-offset: 2px;
 }
 
-.letter-cells__native-input:disabled {
+.letter-cell__input:disabled {
   cursor: not-allowed;
 }
 

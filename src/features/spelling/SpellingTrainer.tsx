@@ -3,7 +3,6 @@ import {
   Button,
   Card,
   FeedbackDetails,
-  LetterCells,
   ProgressDots,
 } from '../../components'
 import { analyzeSpellAnswer } from '../../domain/attempts/spellDiff'
@@ -21,9 +20,14 @@ import {
 import { useAppState } from '../../app/providers/AppStateProvider'
 import { useSpeech } from '../../services/speech'
 import { formatShortDate, uid } from '../../utils/format'
-
-type PracticeMode = 'sound' | 'meaning' | 'copy'
-
+import {
+  buildSpellingChoiceOptions,
+  supportsSpellingChoice,
+} from './spellingChoice'
+import {
+  SpellingExercise,
+  type SpellingPracticeMode,
+} from './SpellingExercise'
 const ERROR_COPY: Record<SpellingErrorTag, string> = {
   vowelChoice: '母音の選び方',
   consonantChoice: '子音の選び方',
@@ -49,7 +53,6 @@ function strategyLabel(item: SpellingWord): string {
   }
   return labels[item.strategy]
 }
-
 function feedbackFor(
   item: SpellingWord,
   primaryTag: SpellingErrorTag | null,
@@ -64,7 +67,6 @@ function feedbackFor(
   }
   return `惜しいです。${primaryTag ? ERROR_COPY[primaryTag] : '文字の並び'}を一つ確認しましょう。`
 }
-
 function upsertNote(
   notes: MistakeNote[],
   item: SpellingWord,
@@ -110,7 +112,6 @@ function upsertNote(
     ...notes,
   ]
 }
-
 export interface SpellingTrainerProps {
   items: readonly SpellingWord[]
   initialIndex?: number
@@ -127,21 +128,50 @@ export function SpellingTrainer({
   const { state, updateState } = useAppState()
   const speech = useSpeech()
   const [index, setIndex] = useState(Math.min(initialIndex, Math.max(0, items.length - 1)))
-  const [mode, setMode] = useState<PracticeMode>('sound')
+  const [mode, setMode] = useState<SpellingPracticeMode>('sound')
   const [answer, setAnswer] = useState('')
   const [analysis, setAnalysis] = useState<ReturnType<typeof analyzeSpellAnswer> | null>(null)
   const [hintLevel, setHintLevel] = useState(0)
   const [retried, setRetried] = useState(false)
   const [startedAt, setStartedAt] = useState(() => Date.now())
+  const [scheduledDueAt, setScheduledDueAt] = useState<string | null>(null)
+  const [recallReadyItems, setRecallReadyItems] = useState<Set<string>>(
+    () => new Set(),
+  )
 
-  const item = items[index]
+  const choiceItems = useMemo(
+    () => items.filter(supportsSpellingChoice),
+    [items],
+  )
+  const activeItems = mode === 'choice' ? choiceItems : items
+  const activeIndex = Math.min(index, Math.max(0, activeItems.length - 1))
+  const item = activeItems[activeIndex]
+  const choiceOptions = useMemo(
+    () => (item ? buildSpellingChoiceOptions(item) : []),
+    [item],
+  )
   const speechAllowed = Boolean(state.profile?.useSpeech && speech.supported)
-  const dueDate = analysis ? state.cards[`card:${item?.id}`]?.dueAt : null
+  const reviewCard = item ? state.cards[`card:${item.id}`] : undefined
+  const isNewItem = Boolean(
+    item &&
+      (!reviewCard ||
+        (reviewCard.repetitions === 0 && reviewCard.lastReviewedAt === null)),
+  )
+  const presenting = Boolean(
+    item &&
+      !analysis &&
+      mode !== 'choice' &&
+      mode !== 'copy' &&
+      isNewItem &&
+      !recallReadyItems.has(item.id),
+  )
+  const dueDate =
+    scheduledDueAt ?? (analysis && reviewCard ? reviewCard.dueAt : null)
   const hintText = useMemo(() => {
     if (!item || hintLevel === 0) return null
-    if (hintLevel === 1) return `${item.word.length}文字・${item.chunks.length}つのまとまりです。`
-    if (hintLevel === 2) return `最初のまとまりは「${item.chunks[0]}」です。`
-    return item.audioHintJa ?? `${item.chunks.join('｜')} の切れ目を意識します。`
+    if (hintLevel === 1) return 'まとまりの区切りを表示しました。'
+    if (hintLevel === 2) return '最初のまとまりを表示しました。'
+    return 'すべてのまとまりを表示しました。'
   }, [hintLevel, item])
 
   if (!item) {
@@ -162,7 +192,7 @@ export function SpellingTrainer({
       at: now.toISOString(),
       kind: 'spelling',
       refId: item.id,
-      isRecall: mode !== 'copy',
+      isRecall: mode !== 'copy' && mode !== 'choice',
       input: answer,
       correct: checked.correct,
       hintLevelUsed: hintLevel,
@@ -170,26 +200,28 @@ export function SpellingTrainer({
       errorTags: checked.errorTags,
       skillIds: item.skillIds,
     }
-    updateState((previous) => {
-      const card =
-        previous.cards[`card:${item.id}`] ??
-        createReviewCard({
-          kind: 'spelling',
-          refId: item.id,
-          source: 'curriculum',
-          now,
-        })
-      const nextCard = applyReviewOutcome(
-        card,
-        {
-          correct: checked.correct,
-          usedHint: hintLevel > 0,
-          retried,
-          responseTimeMs,
-          targetTimeMs: 20_000,
-        },
+    const card =
+      state.cards[`card:${item.id}`] ??
+      createReviewCard({
+        kind: 'spelling',
+        refId: item.id,
+        source: 'curriculum',
         now,
-      )
+      })
+    const nextCard = applyReviewOutcome(
+      card,
+      {
+        correct: checked.correct,
+        usedHint: hintLevel > 0,
+        hintCount: hintLevel,
+        retried,
+        responseTimeMs,
+        targetTimeMs: 20_000,
+      },
+      now,
+    )
+    setScheduledDueAt(nextCard.dueAt)
+    updateState((previous) => {
       return {
         ...previous,
         attempts: [...previous.attempts, attempt].slice(-1000),
@@ -213,6 +245,26 @@ export function SpellingTrainer({
     setHintLevel(0)
     setRetried(isRetry)
     setStartedAt(Date.now())
+    setScheduledDueAt(null)
+  }
+
+  const startRecall = () => {
+    setRecallReadyItems((previous) => {
+      const next = new Set(previous)
+      next.add(item.id)
+      return next
+    })
+    setAnswer('')
+    setAnalysis(null)
+    setHintLevel(0)
+    setRetried(false)
+    setStartedAt(Date.now())
+    setScheduledDueAt(null)
+  }
+
+  const advance = () => {
+    resetFor((activeIndex + 1) % activeItems.length)
+    onNext?.()
   }
 
   return (
@@ -222,18 +274,33 @@ export function SpellingTrainer({
           <span className="field-label">練習モード</span>
           <select
             value={mode}
-            onChange={(event) => setMode(event.target.value as PracticeMode)}
+            onChange={(event) => {
+              setMode(event.target.value as SpellingPracticeMode)
+              resetFor(0)
+            }}
             disabled={Boolean(analysis)}
           >
             <option value="sound">音から想起</option>
             <option value="meaning">意味から想起</option>
+            <option value="choice" disabled={choiceItems.length === 0}>
+              正しいスペルを選ぶ
+            </option>
             <option value="copy">見て確認（写し）</option>
           </select>
         </label>
-        <ProgressDots current={index} total={Math.min(items.length, 8)} />
+        {activeItems.length > 1 && (
+          <ProgressDots
+            current={activeIndex}
+            total={Math.min(activeItems.length, 8)}
+          />
+        )}
       </div>
 
-      <Card label={`スペル｜${mode === 'copy' ? '写し' : '想起'}`}>
+      <Card
+        label={`スペル｜${
+          mode === 'copy' ? '写し' : mode === 'choice' ? '見分け' : '想起'
+        }`}
+      >
         <div className="prompt-block">
           {mode === 'copy' && (
             <p className="spelling-model" lang="en">
@@ -260,38 +327,33 @@ export function SpellingTrainer({
           <p className="notice">音声を使えないため、意味から綴りを思い出してください。</p>
         )}
 
-        <LetterCells
-          value={answer}
-          mode={analysis ? 'graded' : 'input'}
-          correctAnswer={item.word}
-          operations={analysis?.operations}
-          chunks={item.chunks}
-          chunkLabels={item.chunkLabels}
-          expectedLength={item.word.length}
-          feedback={
-            analysis
-              ? feedbackFor(
-                  item,
-                  analysis.primaryTag as SpellingErrorTag | null,
-                  analysis.correct,
-                )
-              : hintText ?? undefined
-          }
-          onChange={(value) =>
+        <SpellingExercise
+          item={item}
+          mode={mode}
+          answer={answer}
+          choiceOptions={choiceOptions}
+          analysis={analysis}
+          hintLevel={hintLevel}
+          hintText={hintText}
+          presenting={presenting}
+          onAnswerChange={(value) =>
             setAnswer(value.replace(/[^A-Za-zÀ-ž'’\-\s]/g, ''))
           }
           onHint={() => setHintLevel((level) => Math.min(3, level + 1))}
           onSubmit={submit}
+          onStartRecall={startRecall}
         />
 
-        {!analysis ? (
+        {presenting ? null : !analysis ? (
           <div className="sticky-actions">
-            <Button
-              variant="secondary"
-              onClick={() => setHintLevel((level) => Math.min(3, level + 1))}
-            >
-              ヒント
-            </Button>
+            {mode !== 'choice' && (
+              <Button
+                variant="secondary"
+                onClick={() => setHintLevel((level) => Math.min(3, level + 1))}
+              >
+                ヒント
+              </Button>
+            )}
             <Button onClick={submit} disabled={!answer.trim()}>
               答え合わせ
             </Button>
@@ -313,18 +375,19 @@ export function SpellingTrainer({
               <p>{item.exampleJa}</p>
               {item.audioHintJa && <p>{item.audioHintJa}</p>}
             </FeedbackDetails>
-            <p className="review-date">
-              次回の復習：{dueDate ? formatShortDate(dueDate) : 'このあと登録します'}
-            </p>
+            {dueDate && (
+              <p className="review-date">
+                次回の復習：{formatShortDate(dueDate)}
+              </p>
+            )}
             <div className="sticky-actions">
-              <Button variant="secondary" onClick={() => resetFor(index, true)}>
+              <Button
+                variant="secondary"
+                onClick={() => resetFor(activeIndex, true)}
+              >
                 もう一度
               </Button>
-              <Button
-                onClick={() =>
-                  onNext ? onNext() : resetFor((index + 1) % items.length)
-                }
-              >
+              <Button onClick={advance}>
                 次へ
               </Button>
             </div>

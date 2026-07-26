@@ -42,6 +42,12 @@ export function WritingFeedbackActions({
       task,
     ],
   )
+  const breakdown = reviewPrompt.vocabularyBreakdown
+  const vocabularySummary =
+    `使用可能な語彙 ${reviewPrompt.vocabularyCount}語` +
+    `（課題 ${breakdown.task} / 実定着 ${breakdown.wordStable}` +
+    ` / 技能定着 ${breakdown.skillStable}` +
+    ` / 補完 ${breakdown.fallbackBasic + breakdown.fallbackModel}）`
 
   return (
     <div className="secondary-actions feedback-prompt-actions">
@@ -66,9 +72,8 @@ export function WritingFeedbackActions({
           : '添削に出す（プロンプトをコピー）'}
       </Button>
       <p className="feedback-vocabulary-count">
-        {includeVocabulary
-          ? `使用可能な語彙 ${reviewPrompt.vocabularyCount}語を含めました`
-          : '使用可能な語彙リストは含めません'}
+        {vocabularySummary}
+        {!includeVocabulary && '（コピーには含めません）'}
       </p>
       {copied && savedEssayId && (
         <Button
